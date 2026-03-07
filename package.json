@@ -1,0 +1,10 @@
+{
+  "name": "work-tools",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local MCP servers and Claude skills for work productivity",
+  "workspaces": [
+    "mcp-servers/*"
+  ]
+}

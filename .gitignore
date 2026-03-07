@@ -1,0 +1,19 @@
+node_modules/
+dist/
+*.pem
+.env.local
+.env
+*.tsbuildinfo
+
+# Token files (never commit)
+.outlook-mcp-token.json
+.harvest-mcp-token.json
+
+# Skills — personal config (gitignored on main; forks commit their own)
+skills/*/references/my-config.md
+skills/built-archive/templates/
+skills/built-archive/*/
+
+# OS
+.DS_Store
+Thumbs.db

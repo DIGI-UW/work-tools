@@ -1,0 +1,23 @@
+{
+  "name": "@work-tools/mcp-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Combined local MCP server: Outlook email/calendar + Harvest time tracking",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "warmup": "node dist/warmup.js",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "playwright": "^1.52.0",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.2"
+  }
+}

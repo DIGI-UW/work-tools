@@ -1,0 +1,268 @@
+# AGENTS.md
+
+Guidance for AI coding agents working on this repository.
+
+## What This Repo Is
+
+Work-tools is a monorepo for **local** work productivity tools used with Claude. It contains two types of artifacts:
+
+| Type | Location | What It Is |
+|------|----------|------------|
+| **MCP Servers** | `mcp-servers/` | Local Node.js processes that expose tools over stdio. Claude Desktop/Code launches them as child processes. They provide raw API access to services like Outlook and Harvest without relying on remote deployments. |
+| **Claude Skills** | `skills/` | Self-contained folders zippable into `.skill` files for Claude Desktop. Each contains a `SKILL.md` (AI playbook) plus bundled scripts and references that Claude orchestrates during execution. |
+
+These are complementary: MCP servers give Claude **capabilities** (read email, log time), skills give Claude **intelligence** (when to read what, how to prioritize, what to output).
+
+## Repo Structure
+
+```
+work-tools/
+├── mcp-servers/
+│   └── outlook-harvest/         # Outlook email/calendar + Harvest time tracking
+│       ├── src/
+│       │   ├── index.ts         # MCP server entry — 17 tool registrations
+│       │   ├── outlook-api.ts   # Outlook REST API client + headless auto-refresh
+│       │   ├── harvest-api.ts   # Harvest V2 API client (PAT or browser token)
+│       │   └── warmup.ts        # Pre-session token capture for both services
+│       ├── package.json
+│       └── tsconfig.json
+├── skills/
+│   ├── daily-planner/           # AI daily work planner
+│   │   ├── SKILL.md             # Orchestration playbook
+│   │   ├── references/          # Bundled reference docs (sheet structure, setup, etc.)
+│   │   └── scripts/             # Bundled helpers (Apps Script, Python)
+│   ├── weekly-harvest-timesheet/ # Harvest timesheet automation
+│   │   ├── SKILL.md             # Semi-supervised timesheet workflow
+│   │   └── harvest-timesheet-session-handoff.md  # Inter-session memory
+│   └── deep-research/           # Multi-source research agent
+│       └── SKILL.md             # Configurable research workflow
+├── setup.sh                     # One-time macOS setup (Desktop + Code)
+├── warmup.sh                    # Pre-session browser token capture
+└── package.json                 # Root workspace config
+```
+
+## Build & Run
+
+```bash
+# MCP server
+cd mcp-servers/outlook-harvest
+npm install
+npm run build          # tsc → dist/
+npm run dev            # tsx (hot reload)
+npm start              # node dist/index.js (production)
+npm run warmup         # Capture Outlook + Harvest tokens via browser
+
+# From repo root
+./setup.sh             # One-time setup (installs deps, builds, configures)
+./warmup.sh            # Pre-session token capture
+```
+
+## Code Style
+
+- **TypeScript strict mode**, ES2022 target, `NodeNext` module resolution
+- Use `.js` extensions in relative imports (required for NodeNext)
+- **Zod** for all MCP tool input schemas
+- All logs to **stderr** (`process.stderr.write`), never stdout (MCP protocol uses stdout)
+- Prefix unused variables with `_`
+
+## MCP Server Patterns
+
+### Authentication
+
+Both Outlook and Harvest use **browser token capture** via Playwright — no developer credentials or admin consent needed:
+
+1. **Outlook**: Launches Chrome, navigates to `outlook.office365.com`, intercepts Bearer token from network traffic. Token lasts ~15 minutes but **auto-refreshes headlessly** using persistent browser profile SSO cookies. Stored at `~/.outlook-mcp-token.json`.
+2. **Harvest**: Same pattern against `app.harvestapp.com`. Token lasts ~8 hours. Stored at `~/.harvest-mcp-token.json`. Falls back to env vars `HARVEST_ACCESS_TOKEN` + `HARVEST_ACCOUNT_ID` if set.
+3. **Shared browser context**: During warmup, both services share a single Playwright browser context (one Chrome window, two tabs). The `captureToken()` functions accept an optional `existingContext` parameter.
+4. **Harvest submit**: The Harvest V2 API has no submission endpoint. Users submit manually via the Harvest web UI after reviewing entries.
+
+### Environment Variables
+
+The MCP server loads env vars at startup with this precedence (first set wins):
+
+1. **Shell environment** — always takes priority
+2. **`<repo-root>/.env.local`** — resolved via `__dirname` (works regardless of cwd)
+3. **`~/.work-tools.env`** — home-dir fallback (works in Cowork VMs, scheduled tasks, any context)
+
+See `.env.local.example` for the full list of variables. Run `setup.sh` to configure and optionally symlink `~/.work-tools.env` → `.env.local`.
+
+### Adding a New MCP Tool
+
+In `src/index.ts`:
+```typescript
+server.tool(
+  "tool_name",
+  "Description",
+  { param: z.string().describe("...") },
+  async ({ param }) => {
+    // Call API
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+  },
+);
+```
+
+### Adding a New MCP Server
+
+Create `mcp-servers/<name>/` with:
+- `package.json` (must have `"type": "module"`)
+- `tsconfig.json` (copy from outlook-harvest)
+- `src/index.ts` — use `McpServer` + `StdioServerTransport`
+
+## Skills Inventory
+
+| Skill | Purpose | Local MCP Tools | External MCP Dependencies |
+|-------|---------|----------------|--------------------------|
+| **daily-planner** | Synthesizes Jira, Slack, GitHub, Outlook, Harvest into time-blocked daily plans with parallel work streams | `outlook_list_events`, `outlook_list_emails`, `harvest_weekly_summary`, `harvest_list_time_entries` | GitHub MCP, Atlassian MCP (Jira), Slack MCP |
+| **weekly-harvest-timesheet** | Semi-supervised Harvest timesheet automation — gathers signals, maps meetings to projects, fills hours | `outlook_list_events`, `outlook_refresh`, `harvest_list_time_entries`, `harvest_create_time_entry` | GitHub MCP, Atlassian MCP (Jira) |
+| **deep-research** | Configurable multi-source research agent producing structured markdown reports | None | PubMed MCP, Google Drive MCP (optional), Atlassian MCP (optional) |
+
+## Tool Inventory (outlook-harvest MCP server)
+
+**Shared** (1): `warmup`
+
+**Outlook tools** (7):
+`outlook_status`, `outlook_refresh`, `outlook_list_emails`, `outlook_read_email`, `outlook_search_emails`, `outlook_list_events`, `outlook_search_events`
+
+**Harvest tools** (9):
+`harvest_status`, `harvest_refresh`, `harvest_list_projects`, `harvest_list_tasks`, `harvest_list_time_entries`, `harvest_create_time_entry`, `harvest_update_time_entry`, `harvest_delete_time_entry`, `harvest_weekly_summary`
+
+## External MCP Dependencies
+
+Skills expect these external MCP servers to be configured:
+
+| MCP Server | Tools Used | Required By | Setup |
+|-----------|-----------|-------------|-------|
+| **GitHub MCP** (`github`) | `list_pull_requests`, `search_issues`, `pull_request_read`, `issue_read` | daily-planner, weekly-harvest | Works via Claude Code plugins or `claude mcp add --scope user`. Note: Claude Desktop official integration is unreliable. |
+| **Atlassian MCP** | `searchJiraIssuesUsingJql`, `getJiraIssue`, etc. | daily-planner, weekly-harvest | Claude-native integration (cloud ID: `57b4e32d-23d4-4a71-8985-82ac0274d145`) |
+| **Slack MCP** | `slack_search_public` | daily-planner | Claude-native integration |
+| **PubMed MCP** | `search_articles`, `get_article_metadata`, etc. | deep-research | Claude-native integration |
+| **Google Drive MCP** | `google_drive_search` | deep-research (optional) | Not currently configured |
+
+## Skill Patterns
+
+### Skill Folder Structure
+
+Each skill in `skills/` is self-contained and zippable into a `.skill` file:
+
+```
+skills/<name>/
+├── SKILL.md                       # Required. Workflow orchestration instructions
+├── references/
+│   ├── my-config.md               # Personal config (gitignored on main)
+│   ├── my-config.example.md       # Template for new users
+│   ├── my-config.<name>.md        # Named configs for teammates
+│   └── work-tools-index.md        # Shared MCP tool catalog (copied by build)
+└── scripts/                       # Optional. Helpers (Python, Apps Script, shell)
+
+skills/shared/                     # Shared references copied into each skill during build
+└── work-tools-index.md            # MCP tool catalog, env vars, available skills
+
+skills/built-archive/              # Built .skill files (zip archives)
+└── templates/                     # Template builds (gitignored)
+```
+
+### Skill Customization (my-config.md)
+
+Each skill separates **workflow logic** (SKILL.md) from **personal data** (my-config.md). The SKILL.md references config via markdown links like `[references/my-config.md](references/my-config.md#section-name)`.
+
+**Config files per skill:**
+- `my-config.md` — active config used at runtime. **Gitignored on main** to prevent accidental push of personal data. Committed in personal forks.
+- `my-config.example.md` — de-identified template with placeholder values and setup instructions. Always committed.
+- `my-config.<name>.md` — named configs for teammates (e.g., `my-config.jan.md`). Committed to main if the team shares one repo.
+
+**Three ways to customize:**
+
+| Approach | How | Best For |
+|----------|-----|----------|
+| **Same repo, named configs** | Create `my-config.jan.md`, build with `--config=jan` | Small team, shared repo |
+| **Fork with own config** | Fork, add `my-config.md` to your fork, pull upstream | Individual contributor |
+| **Private fork** | Same as fork, but private repo | Sensitive personal data |
+
+### Building .skill Files
+
+```bash
+./build-skills.sh                  # Build with default my-config.md
+./build-skills.sh --symlink        # Also create .claude/skills/ symlinks for Claude Code
+./build-skills.sh --template       # Build shareable version with placeholder config
+./build-skills.sh --config=jan     # Build with my-config.jan.md as the active config
+```
+
+The build script copies shared references from `skills/shared/` into each skill's `references/` folder, selects the appropriate config, strips other `my-config.*.md` files, and zips into a `.skill` file.
+
+### Distribution
+
+| Surface | Method |
+|---------|--------|
+| **Claude Code** | `.claude/skills/` symlinks (created by `--symlink` flag) |
+| **Claude Desktop** | Upload `.skill` files from `built-archive/` |
+| **Team sharing** | Commit `skills/` source + `built-archive/` to git |
+| **New user onboarding** | `cp my-config.example.md my-config.md`, edit, build |
+
+### SKILL.md Anatomy
+
+```markdown
+---
+name: skill-name
+description: >
+  When this skill triggers and what it does.
+---
+
+# Skill Title
+
+Instructions for Claude: what data to gather, how to process it,
+what to output. Reference bundled scripts and MCP tools by name.
+```
+
+The SKILL.md is the "brain" — it tells Claude:
+- What MCP tools to call and when
+- How to run bundled scripts (`scripts/`)
+- How to read bundled references (`references/`)
+- What to output (JSON, markdown, dashboard data, etc.)
+
+## Development Methodology — Speckit
+
+This project uses **speckit** for feature development. Use `/speckit.*` commands:
+
+| Command | Purpose |
+|---------|---------|
+| `/speckit.specify` | Create or update a feature spec from a description |
+| `/speckit.plan` | Generate a technical implementation plan |
+| `/speckit.tasks` | Generate dependency-ordered tasks |
+| `/speckit.implement` | Execute tasks from tasks.md |
+| `/speckit.clarify` | Identify underspecified areas in the spec |
+| `/speckit.analyze` | Cross-artifact consistency check |
+
+### Workflow
+
+1. **Specify**: Describe the feature → spec is generated in `.specify/specs/<name>/spec.md`
+2. **Plan**: Spec → implementation plan in `plan.md`
+3. **Tasks**: Plan → ordered task list in `tasks.md`
+4. **Implement**: Execute tasks, checking them off as done
+
+### Adding a New MCP Server via Speckit
+
+```
+/speckit.specify Add a new MCP server for <service> that provides <tools>
+```
+
+### Adding a New Skill via Speckit
+
+```
+/speckit.specify Add a Claude skill for <workflow> that orchestrates <data sources> into <output>
+```
+
+## PR Guidelines
+
+- Branch from `main`, squash merge back
+- Prefix commits: `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`
+- Verify: `npm run build` passes in all modified mcp-servers
+
+## Active Technologies
+
+**Runtime:** TypeScript 5.8+ / Node.js 20+ (ES2022, NodeNext)
+
+**MCP:** `@modelcontextprotocol/sdk ^1.12.1`, Zod 3
+
+**Browser automation:** Playwright (Chromium, persistent profiles)
+
+**Skill scripts:** Python 3, Google Apps Script

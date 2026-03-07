@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Planner</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
+  :root {
+    /* UW brand core */
+    --uw-purple: #4B2E83;
+    --uw-purple-light: #6a4fa0;
+    --uw-purple-muted: #8b7aaf;
+    --uw-purple-faint: #ece8f4;
+    --uw-gold: #B7A57A;
+    --uw-gold-dark: #85754D;
+    --uw-gold-light: #d4c9a8;
+    --uw-gold-faint: #f5f1e8;
+
+    /* Layout */
+    --bg: #f8f7f5;
+    --surface: #ffffff;
+    --text: #1e1e2e;
+    --text-secondary: #4a4a5a;
+    --text-muted: #8a8a96;
+    --border: #e6e4df;
+    --border-light: #f0eeea;
+
+    /* Card palette — UW-derived, all soft & warm */
+    --card-1: #e8e3f2;     /* light purple */
+    --card-1-accent: #6a4fa0;
+    --card-2: #dce4ec;     /* cool slate */
+    --card-2-accent: #6b8899;
+    --card-3: #e2ece5;     /* sage mist */
+    --card-3-accent: #6a9e7a;
+    --card-4: #f0ebe0;     /* warm gold tint */
+    --card-4-accent: #9e8d68;
+    --card-5: #ede5dc;     /* sand */
+    --card-5-accent: #b09578;
+    --card-6: #e5e0ed;     /* lavender */
+    --card-6-accent: #8070a8;
+
+    /* Streams — UW-toned */
+    --stream-a: var(--uw-purple-light);
+    --stream-b: #6a9e7a;
+    --stream-c: var(--uw-gold-dark);
+
+    /* Functional */
+    --nudge: var(--uw-gold);
+    --nudge-bg: var(--uw-gold-faint);
+    --done: #6a9e7a;
+    --meeting-bg: var(--uw-purple-faint);
+
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- Header ---- */
+  .header {
+    background: var(--uw-purple);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 120' preserveAspectRatio='xMaxYMax meet'%3E%3Cg fill='%23ffffff' opacity='0.07'%3E%3Cpath d='M200,120 Q240,105 280,110 Q320,100 360,120 Z'/%3E%3Crect x='380' y='30' width='3' height='70'/%3E%3Cellipse cx='381' cy='32' rx='12' ry='4'/%3E%3Crect x='375' y='26' width='12' height='6' rx='1'/%3E%3Crect x='379' y='16' width='4' height='12'/%3E%3Ccircle cx='381' cy='14' r='2'/%3E%3Crect x='420' y='35' width='16' height='65' rx='1'/%3E%3Crect x='423' y='28' width='10' height='7'/%3E%3Crect x='450' y='50' width='10' height='50' rx='1'/%3E%3Cpolygon points='450,50 455,38 460,50'/%3E%3Crect x='475' y='55' width='14' height='45' rx='1'/%3E%3Crect x='495' y='48' width='12' height='52' rx='1'/%3E%3Crect x='515' y='60' width='10' height='40' rx='1'/%3E%3Crect x='535' y='52' width='13' height='48' rx='1'/%3E%3Crect x='555' y='65' width='9' height='35' rx='1'/%3E%3Crect x='575' y='58' width='11' height='42' rx='1'/%3E%3Crect x='595' y='62' width='8' height='38' rx='1'/%3E%3Crect x='615' y='70' width='12' height='30' rx='1'/%3E%3Crect x='640' y='66' width='10' height='34' rx='1'/%3E%3Crect x='660' y='58' width='14' height='42' rx='1'/%3E%3Crect x='680' y='72' width='8' height='28' rx='1'/%3E%3Crect x='700' y='64' width='11' height='36' rx='1'/%3E%3Crect x='725' y='70' width='9' height='30' rx='1'/%3E%3Crect x='750' y='74' width='8' height='26' rx='1'/%3E%3Crect x='770' y='70' width='10' height='30' rx='1'/%3E%3Crect x='795' y='76' width='7' height='24' rx='1'/%3E%3Cpath d='M830,120 Q860,55 890,120'/%3E%3Cpath d='M855,85 Q860,72 865,85' fill='%23ffffff' opacity='0.03'/%3E%3Cpath d='M720,120 Q780,100 840,108 Q900,95 950,120 Z'/%3E%3Cpath d='M930,120 Q960,108 1000,120 Z'/%3E%3C/g%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: left bottom;
+    background-size: 55% 100%;
+    color: white;
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-nav { flex: 0 0 auto; }
+  .header-left { position: absolute; left: 32px; top: 50%; transform: translateY(-50%); display: flex; gap: 10px; align-items: center; }
+  .header-nav h1 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  .header-nav .subtitle {
+    font-size: 0.78rem;
+    opacity: 0.65;
+    margin-top: 2px;
+    font-weight: 400;
+  }
+  .header-pill {
+    padding: 4px 13px;
+    border-radius: 20px;
+    font-size: 0.76rem;
+    font-weight: 500;
+    background: rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.9);
+    border: 1px solid rgba(255,255,255,0.18);
+  }
+  .header-pill.capacity {
+    background: var(--uw-gold);
+    color: var(--uw-purple);
+    border-color: var(--uw-gold);
+    font-weight: 700;
+  }
+
+  /* ---- Main layout ---- */
+  .main { max-width: 980px; margin: 0 auto; padding: 24px 24px 80px; }
+
+  /* ---- Section labels ---- */
+  .section-label {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--uw-purple);
+    margin: 32px 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    letter-spacing: -0.01em;
+  }
+  .section-label:first-child { margin-top: 0; }
+  .section-label .count {
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: var(--text-muted);
+  }
+  .section-label .section-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+    margin-left: 6px;
+  }
+
+  /* ---- Post-it grid ---- */
+  .postit-grid { display: grid; gap: 14px; }
+  .postit-grid.top-3 { grid-template-columns: repeat(3, 1fr); }
+  .postit-grid.options { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+
+  /* ---- Post-it card ---- */
+  .postit {
+    position: relative;
+    padding: 16px 18px 14px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid transparent;
+  }
+  .postit:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+  .postit.expanded { grid-column: 1 / -1; box-shadow: var(--shadow-md); }
+
+  /* Left accent stripe */
+  .postit::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px;
+    height: 100%;
+    border-radius: var(--radius) 0 0 var(--radius);
+  }
+
+  /* Card colors */
+  .postit.purple-tint { background: var(--card-1); border-color: rgba(106,79,160,0.15); }
+  .postit.purple-tint::before { background: var(--card-1-accent); }
+  .postit.slate      { background: var(--card-2); border-color: rgba(107,136,153,0.15); }
+  .postit.slate::before { background: var(--card-2-accent); }
+  .postit.sage       { background: var(--card-3); border-color: rgba(106,158,122,0.15); }
+  .postit.sage::before { background: var(--card-3-accent); }
+  .postit.gold-tint  { background: var(--card-4); border-color: rgba(158,141,104,0.15); }
+  .postit.gold-tint::before { background: var(--card-4-accent); }
+  .postit.sand       { background: var(--card-5); border-color: rgba(176,149,120,0.15); }
+  .postit.sand::before { background: var(--card-5-accent); }
+  .postit.lavender   { background: var(--card-6); border-color: rgba(128,112,168,0.15); }
+  .postit.lavender::before { background: var(--card-6-accent); }
+
+  /* Done state */
+  .postit.task-done { opacity: 0.45; }
+  .postit.task-done .postit-title { text-decoration: line-through; }
+  .postit.task-done::after { content: '\2713'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 2.2rem; color: var(--done); opacity: 0.35; pointer-events: none; }
+
+  /* Card content */
+  .postit-rank {
+    font-size: 1.3rem;
+    font-weight: 700;
+    line-height: 1;
+    opacity: 0.12;
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    color: var(--text);
+  }
+  .postit-title {
+    font-weight: 600;
+    font-size: 0.85rem;
+    line-height: 1.35;
+    margin-bottom: 6px;
+    letter-spacing: -0.01em;
+  }
+  .postit-title a {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1.5px dotted rgba(0,0,0,0.2);
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .postit-title a:hover {
+    color: var(--uw-purple);
+    border-bottom-color: var(--uw-purple);
+  }
+  .postit-meta {
+    font-size: 0.73rem;
+    color: var(--text-secondary);
+    margin-bottom: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-weight: 500;
+    font-size: 0.68rem;
+    background: rgba(0,0,0,0.05);
+    color: var(--text-secondary);
+  }
+  .stream-tag {
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-weight: 600;
+    font-size: 0.63rem;
+    color: white;
+    letter-spacing: 0.02em;
+  }
+  .stream-a { background: var(--stream-a); }
+  .stream-b { background: var(--stream-b); }
+  .stream-c { background: var(--stream-c); }
+
+  .postit-source {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .postit-source a { color: var(--text-secondary); text-decoration: none; border-bottom: 1px dotted var(--text-muted); }
+  .postit-source a:hover { color: var(--uw-purple); }
+
+  /* Nudge badge — soft gold chip, sits in the meta row */
+  .nudge-badge {
+    display: inline-block;
+    font-size: 0.63rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 5px;
+    background: var(--nudge-bg);
+    color: var(--uw-gold-dark);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  /* Expanded detail */
+  .postit-detail {
+    display: none;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(0,0,0,0.06);
+    font-size: 0.78rem;
+    line-height: 1.65;
+    color: var(--text-secondary);
+  }
+  .postit.expanded .postit-detail { display: block; }
+  .postit-detail h4 {
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin: 10px 0 4px;
+  }
+  .postit-detail h4:first-child { margin-top: 0; }
+  .postit-detail ul { padding-left: 16px; }
+  .postit-detail li { margin-bottom: 2px; }
+  .postit-detail .decision-box {
+    background: var(--uw-purple-faint);
+    border-left: 3px solid var(--uw-purple-muted);
+    padding: 8px 12px;
+    margin: 8px 0;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    font-style: italic;
+    color: var(--text-secondary);
+  }
+
+  /* Actions */
+  .postit-actions { display: none; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.04); }
+  .postit.expanded .postit-actions { display: flex; gap: 8px; }
+  .action-btn {
+    font-family: inherit;
+    font-size: 0.7rem;
+    padding: 4px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(0,0,0,0.1);
+    background: rgba(255,255,255,0.7);
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.15s;
+    color: var(--text-secondary);
+  }
+  .action-btn:hover { background: rgba(255,255,255,0.95); border-color: rgba(0,0,0,0.15); }
+  .action-btn.done-btn { border-color: var(--done); color: var(--done); }
+  .action-btn.done-btn:hover { background: var(--done); color: white; }
+
+  .expand-hint { font-size: 0.66rem; color: var(--text-muted); margin-top: 8px; text-align: right; opacity: 0.45; }
+  .postit.expanded .expand-hint { display: none; }
+
+  /* ---- Refresh note ---- */
+  .nav-btn {
+    background: none;
+    border: 2px solid rgba(255,255,255,0.4);
+    color: white;
+    font-size: 1rem;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .nav-btn:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.7); }
+  .nav-btn:disabled { opacity: 0.25; cursor: default; }
+  .nav-btn:disabled:hover { background: none; border-color: rgba(255,255,255,0.4); }
+
+  .refresh-note {
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 40px;
+    padding: 12px 0;
+    border-top: 1px solid var(--border);
+    opacity: 0.6;
+  }
+  .refresh-note strong { color: var(--uw-purple-muted); font-weight: 600; }
+
+  /* ---- Highlight panels (email highlights, overlooked) — side-by-side ---- */
+  .highlight-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+
+  .highlight-panel {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    min-width: 0;
+  }
+  .highlight-panel-header {
+    padding: 12px 18px 8px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+    border-bottom: 1px solid var(--border-light);
+  }
+  .highlight-panel-header .panel-icon { font-size: 0.95rem; opacity: 0.6; }
+  .highlight-panel-header .panel-count { font-weight: 400; font-size: 0.7rem; color: var(--text-muted); margin-left: auto; }
+  .highlight-item {
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 0.78rem;
+    line-height: 1.5;
+    transition: background 0.1s;
+  }
+  .highlight-item:last-child { border-bottom: none; }
+  .highlight-item:hover { background: var(--bg); }
+  .highlight-item .hl-subject { font-weight: 500; color: var(--text); font-size: 0.78rem; }
+  .highlight-item .hl-subject a {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px dotted rgba(0,0,0,0.18);
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .highlight-item .hl-subject a:hover {
+    color: var(--uw-purple);
+    border-bottom-color: var(--uw-purple);
+  }
+  .highlight-item .hl-from { font-size: 0.7rem; color: var(--text-muted); margin-top: 1px; }
+  .highlight-item .hl-snippet { color: var(--text-secondary); margin-top: 2px; font-size: 0.74rem; }
+  .hl-tag {
+    display: inline-block;
+    font-size: 0.62rem;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-top: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .hl-tag.email { background: var(--card-1); color: var(--card-1-accent); }
+  .hl-tag.slack { background: var(--card-6); color: var(--card-6-accent); }
+  .hl-tag.github { background: var(--card-3); color: var(--card-3-accent); }
+  .hl-tag.jira { background: var(--card-4); color: var(--card-4-accent); }
+  .hl-tag.other { background: var(--bg); color: var(--text-muted); }
+
+  /* ---- Pomodoro timer widget ---- */
+  .pomo-widget {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.6), rgba(236,232,244,0.3));
+    border-radius: var(--radius-sm);
+    border: 1px dashed var(--uw-purple-muted);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .pomo-label {
+    font-size: 0.62rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    min-width: 52px;
+  }
+  .pomo-label.work { color: var(--uw-purple); }
+  .pomo-label.on-break { color: var(--done); }
+  .pomo-label.snooze { color: var(--uw-gold-dark); }
+  .pomo-display {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--uw-purple);
+    letter-spacing: 0.08em;
+    min-width: 80px;
+    text-align: center;
+    line-height: 1;
+  }
+  .pomo-display.on-break { color: var(--done); }
+  .pomo-display.snooze { color: var(--uw-gold-dark); }
+  .pomo-display.idle { color: var(--text-muted); opacity: 0.5; }
+  .pomo-display.running .pomo-colon { animation: colon-blink 1s step-end infinite; }
+  @keyframes colon-blink { 50% { opacity: 0; } }
+  .pomo-controls { display: flex; gap: 6px; }
+  .pomo-btn {
+    font-family: inherit;
+    font-size: 0.72rem;
+    padding: 4px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(0,0,0,0.1);
+    background: rgba(255,255,255,0.8);
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.15s;
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+  .pomo-btn:hover { background: white; border-color: rgba(0,0,0,0.2); transform: scale(1.04); }
+  .pomo-btn:active { transform: scale(0.96); }
+  .pomo-btn:disabled { opacity: 0.3; cursor: default; transform: none; }
+  .pomo-btn.go { border-color: var(--uw-purple); color: var(--uw-purple); font-weight: 600; }
+  .pomo-btn.go:hover { background: var(--uw-purple-faint); }
+  .pomo-btn.go.dismiss { border-color: var(--uw-gold-dark); color: var(--uw-gold-dark); }
+  .pomo-btn.go.dismiss:hover { background: var(--uw-gold-faint); }
+  .pomo-btn.rst { border-color: #c0392b; color: #c0392b; }
+  .pomo-btn.rst:hover { background: rgba(192,57,43,0.08); }
+  .pomo-cycle {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---- Timeline ---- */
+  .timeline {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 14px 18px;
+  }
+  .timeline-row {
+    display: flex;
+    align-items: flex-start;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 0.8rem;
+  }
+  .timeline-row:last-child { border-bottom: none; }
+  .timeline-time {
+    width: 60px;
+    flex-shrink: 0;
+    font-weight: 500;
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .timeline-bar { width: 3px; border-radius: 2px; margin-right: 10px; flex-shrink: 0; min-height: 20px; }
+  .timeline-content { flex: 1; }
+  .timeline-task { font-weight: 500; color: var(--text); font-size: 0.8rem; }
+  .timeline-note { font-size: 0.72rem; color: var(--text-muted); margin-top: 1px; }
+  .timeline-meeting { background: var(--meeting-bg); border-radius: 5px; padding: 2px 8px; font-weight: 500; display: inline-block; font-size: 0.78rem; color: var(--uw-purple); }
+
+  .streams-legend { display: flex; gap: 14px; margin: 8px 0 4px; font-size: 0.72rem; color: var(--text-muted); }
+  .streams-legend .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 3px; }
+
+  /* ---- Stats ---- */
+  .footer-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 12px 14px;
+    text-align: center;
+  }
+  .stat-value { font-size: 1.2rem; font-weight: 700; color: var(--uw-purple); }
+  .stat-label { font-size: 0.66rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; font-weight: 500; }
+
+  /* ---- Notes panel ---- */
+  .notes-panel {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 12px 18px;
+    margin-top: 8px;
+    font-size: 0.8rem;
+    line-height: 1.7;
+  }
+  .notes-panel summary {
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.82rem;
+    padding: 2px 0;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+  }
+  .notes-panel summary::before { content: '\203A'; font-size: 1rem; font-weight: 300; transition: transform 0.2s; color: var(--text-muted); width: 12px; }
+  .notes-panel[open] summary::before { transform: rotate(90deg); }
+  .notes-panel .note-content { padding-top: 8px; color: var(--text-secondary); }
+
+  /* ---- Empty state ---- */
+  .empty-state { text-align: center; padding: 80px 20px; color: var(--text-muted); }
+  .empty-state h2 { font-size: 1.4rem; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+
+  /* ---- Responsive ---- */
+  @media (max-width: 768px) {
+    .postit-grid.top-3 { grid-template-columns: 1fr; }
+    .highlight-grid { grid-template-columns: 1fr; }
+    .header { padding: 14px 18px; flex-direction: column; gap: 10px; align-items: flex-start; }
+    .main { padding: 18px 16px 40px; }
+    .footer-stats { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="header-pill" id="hours-badge"></div>
+    <div class="header-pill capacity" id="capacity-pill"></div>
+  </div>
+  <div class="header-nav">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="nav-btn" id="nav-prev" onclick="navDay(-1)" title="Previous day">&#9664;</button>
+      <div>
+        <h1 id="header-title"></h1>
+        <div class="subtitle" id="header-subtitle"></div>
+      </div>
+      <button class="nav-btn" id="nav-next" onclick="navDay(1)" title="Next day">&#9654;</button>
+    </div>
+  </div>
+</div>
+
+<div class="main" id="main-content">
+  <div class="section-label">Today's Focus <span class="count" id="focus-count"></span><span class="section-line"></span></div>
+  <div class="postit-grid top-3" id="top-priorities"></div>
+
+  <div class="section-label">Also On Deck <span class="count" id="deck-count"></span><span class="section-line"></span></div>
+  <div class="postit-grid options" id="more-tasks"></div>
+
+  <div class="section-label" id="highlights-label" style="display:none">Signals <span class="section-line"></span></div>
+  <div class="highlight-grid" id="highlights-grid" style="display:none"></div>
+
+  <div class="section-label" id="timeline-label" style="display:none">Schedule <span class="section-line"></span></div>
+  <div class="streams-legend" id="streams-legend" style="display:none">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--stream-a)"></div>Hands-on</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--stream-b)"></div>AI Background</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--uw-purple-muted)"></div>Meeting</div>
+  </div>
+  <div class="timeline" id="timeline" style="display:none"></div>
+
+  <div class="section-label">At a Glance <span class="section-line"></span></div>
+  <div class="footer-stats" id="stats"></div>
+
+  <div class="section-label" id="notes-label" style="display:none">Notes <span class="section-line"></span></div>
+  <div id="notes-area"></div>
+
+  <div class="refresh-note">To refresh this dashboard with updated priorities, run the <strong>daily-planner</strong> skill in Claude.</div>
+</div>
+
+<script>
+var PLAN_DATA = <?!= planData ?>;
+var AVAILABLE_DATES = <?!= availableDates ?>;
+var CURRENT_VIEW_DATE = '<?!= requestedDate ?>';
+var DEPLOY_URL = '<?!= deployUrl ?>';
+var POMO_CFG = <?!= pomodoroConfig ?>;
+
+/* ---- Pomodoro Manager ---- */
+var Pomo = (function() {
+  var timers = {};  // id -> {state, remaining, iv, phase}
+  var audioCtx = null;
+
+  function id(title) {
+    return String(title).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').substring(0,50);
+  }
+
+  function fmt(secs) {
+    var m = Math.floor(secs / 60), s = secs % 60;
+    return String(m).padStart(2,'0') + '<span class="pomo-colon">:</span>' + String(s).padStart(2,'0');
+  }
+
+  function el(suffix, tid) { return document.getElementById('pomo-' + suffix + '-' + tid); }
+
+  function ring() {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      var t = audioCtx.currentTime;
+      // first ding
+      var o1 = audioCtx.createOscillator(), g1 = audioCtx.createGain();
+      o1.type = 'sine'; o1.frequency.setValueAtTime(830, t);
+      o1.frequency.exponentialRampToValueAtTime(415, t + 0.45);
+      g1.gain.setValueAtTime(0.28, t);
+      g1.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+      o1.connect(g1); g1.connect(audioCtx.destination);
+      o1.start(t); o1.stop(t + 0.45);
+      // second ding
+      var o2 = audioCtx.createOscillator(), g2 = audioCtx.createGain();
+      o2.type = 'sine'; o2.frequency.setValueAtTime(930, t + 0.18);
+      o2.frequency.exponentialRampToValueAtTime(465, t + 0.48);
+      g2.gain.setValueAtTime(0.22, t + 0.18);
+      g2.gain.exponentialRampToValueAtTime(0.001, t + 0.48);
+      o2.connect(g2); g2.connect(audioCtx.destination);
+      o2.start(t + 0.18); o2.stop(t + 0.48);
+    } catch(e) {}
+  }
+
+  function refresh(tid) {
+    var t = timers[tid]; if (!t) return;
+    var d = el('disp', tid), lb = el('lbl', tid), btn = el('go', tid), rst = el('rst', tid), cy = el('cyc', tid);
+    if (!d) return;
+
+    d.innerHTML = fmt(t.remaining);
+    // classes
+    var running = t.state === 'work' || t.state === 'break' || t.state === 'snooze';
+    d.className = 'pomo-display' + (running ? ' running' : ' idle')
+      + (t.state === 'break' ? ' on-break' : '') + (t.state === 'snooze' ? ' snooze' : '');
+    lb.className = 'pomo-label'
+      + (t.state === 'work' ? ' work' : '') + (t.state === 'break' ? ' on-break' : '') + (t.state === 'snooze' ? ' snooze' : '');
+
+    var labels = { idle: 'ready', work: 'working', break: 'break', snooze: '\uD83D\uDD14 snooze', done: 'done!' };
+    lb.textContent = labels[t.state] || 'ready';
+
+    // buttons
+    if (t.state === 'idle') {
+      btn.textContent = '\u25B6 Start'; btn.disabled = false; btn.className = 'pomo-btn go';
+      rst.disabled = true;
+    } else if (t.state === 'snooze') {
+      btn.textContent = '\u2714 Dismiss'; btn.disabled = false; btn.className = 'pomo-btn go dismiss';
+      rst.disabled = false;
+    } else if (t.state === 'done') {
+      btn.textContent = '\u25B6 Again'; btn.disabled = false; btn.className = 'pomo-btn go';
+      rst.disabled = true;
+    } else {
+      btn.disabled = true; rst.disabled = false;
+    }
+    cy.textContent = '\uD83C\uDF45 ' + t.pomos;
+  }
+
+  function tick(tid) {
+    var t = timers[tid]; if (!t) return;
+    t.remaining--;
+    if (t.remaining <= 0) { onComplete(tid); return; }
+    refresh(tid);
+  }
+
+  function onComplete(tid) {
+    var t = timers[tid];
+    if (t.iv) { clearInterval(t.iv); t.iv = null; }
+    ring();
+
+    if (t.state === 'work' || t.state === 'snooze') {
+      if (t.state === 'work' && POMO_CFG.snoozeEnabled) {
+        // enter snooze before break
+        t.state = 'snooze'; t.remaining = POMO_CFG.snoozeMinutes * 60; t.phase = 'pre-break';
+        refresh(tid);
+        t.iv = setInterval(function(){ tick(tid); }, 1000);
+        return;
+      }
+      if (t.state === 'snooze' && t.phase === 'pre-break') {
+        // snooze done -> start break
+        ring();
+      }
+      // start break
+      t.pomos++;
+      t.state = 'break'; t.remaining = POMO_CFG.breakMinutes * 60; t.phase = 'break';
+      refresh(tid);
+      t.iv = setInterval(function(){ tick(tid); }, 1000);
+    } else if (t.state === 'break') {
+      if (POMO_CFG.snoozeEnabled) {
+        t.state = 'snooze'; t.remaining = POMO_CFG.snoozeMinutes * 60; t.phase = 'post-break';
+        refresh(tid);
+        t.iv = setInterval(function(){ tick(tid); }, 1000);
+        return;
+      }
+      // break done, back to idle
+      ring();
+      t.state = 'done'; t.remaining = POMO_CFG.workMinutes * 60;
+      refresh(tid);
+    } else if (t.state === 'snooze' && t.phase === 'post-break') {
+      ring();
+      t.state = 'done'; t.remaining = POMO_CFG.workMinutes * 60;
+      refresh(tid);
+    }
+  }
+
+  return {
+    id: id,
+    start: function(tid) {
+      if (!timers[tid]) {
+        timers[tid] = { state: 'idle', remaining: POMO_CFG.workMinutes * 60, iv: null, phase: '', pomos: 0 };
+      }
+      var t = timers[tid];
+      if (t.state === 'snooze') {
+        // dismiss snooze -> move to next phase
+        if (t.iv) clearInterval(t.iv);
+        if (t.phase === 'pre-break') {
+          t.pomos++; t.state = 'break'; t.remaining = POMO_CFG.breakMinutes * 60;
+        } else {
+          t.state = 'done'; t.remaining = POMO_CFG.workMinutes * 60;
+        }
+        refresh(tid);
+        if (t.state === 'break') { t.iv = setInterval(function(){ tick(tid); }, 1000); }
+        return;
+      }
+      t.state = 'work'; t.remaining = POMO_CFG.workMinutes * 60;
+      refresh(tid);
+      t.iv = setInterval(function(){ tick(tid); }, 1000);
+    },
+    stop: function(tid) {
+      var t = timers[tid]; if (!t) return;
+      if (t.iv) clearInterval(t.iv);
+      t.state = 'idle'; t.remaining = POMO_CFG.workMinutes * 60; t.phase = '';
+      refresh(tid);
+    },
+    init: function(tid) {
+      if (!timers[tid]) {
+        timers[tid] = { state: 'idle', remaining: POMO_CFG.workMinutes * 60, iv: null, phase: '', pomos: 0 };
+      }
+      refresh(tid);
+    },
+    fmt: fmt
+  };
+})();
+
+// Local date helper — avoids UTC rollover bug (toISOString is UTC, breaks after 4pm PST)
+function localDateStr() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+// Navigation: find current index in available dates and navigate
+function navDay(delta) {
+  if (!AVAILABLE_DATES || !AVAILABLE_DATES.length) return;
+
+  var currentIdx = -1;
+  if (CURRENT_VIEW_DATE) {
+    currentIdx = AVAILABLE_DATES.indexOf(CURRENT_VIEW_DATE);
+  } else {
+    // Find today or closest date — use local time, not UTC
+    var today = localDateStr();
+    currentIdx = AVAILABLE_DATES.indexOf(today);
+    if (currentIdx === -1) {
+      // No exact match for today — show the most recent (last) available plan
+      currentIdx = AVAILABLE_DATES.length - 1;
+    }
+  }
+
+  var newIdx = currentIdx + delta;
+  if (newIdx < 0 || newIdx >= AVAILABLE_DATES.length) return;
+
+  var newDate = AVAILABLE_DATES[newIdx];
+  // Use server-provided deployment URL — window.location.href returns the
+  // googleusercontent.com sandbox URL which doesn't pass params to doGet
+  window.top.location.href = DEPLOY_URL + '?page=dashboard&date=' + newDate;
+}
+
+function updateNavButtons() {
+  var prevBtn = document.getElementById('nav-prev');
+  var nextBtn = document.getElementById('nav-next');
+  if (!AVAILABLE_DATES || AVAILABLE_DATES.length <= 1) {
+    prevBtn.disabled = true;
+    nextBtn.disabled = true;
+    return;
+  }
+  var currentIdx = -1;
+  if (CURRENT_VIEW_DATE) {
+    currentIdx = AVAILABLE_DATES.indexOf(CURRENT_VIEW_DATE);
+  } else {
+    var today = localDateStr();
+    currentIdx = AVAILABLE_DATES.indexOf(today);
+    if (currentIdx === -1) {
+      currentIdx = AVAILABLE_DATES.length - 1;
+    }
+  }
+  prevBtn.disabled = (currentIdx <= 0);
+  nextBtn.disabled = (currentIdx >= AVAILABLE_DATES.length - 1);
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  var div = document.createElement('div');
+  div.textContent = String(s);
+  return div.innerHTML;
+}
+
+function render(data) {
+  if (!data || (!(data.top && data.top.length) && !(data.more && data.more.length))) {
+    document.getElementById('main-content').innerHTML = '<div class="empty-state"><h2>No plan yet</h2><p>Run the daily planner skill to generate your plan.</p></div>';
+    return;
+  }
+  // Ensure arrays exist for safe iteration
+  data.top = data.top || [];
+  data.more = data.more || [];
+
+  document.getElementById('header-title').textContent = data.date;
+  document.getElementById('header-subtitle').textContent = 'Generated ' + data.generated;
+  document.getElementById('hours-badge').textContent = data.plannable_hours + 'h plannable';
+  document.getElementById('capacity-pill').textContent = data.capacity_label;
+
+  document.getElementById('focus-count').textContent = data.top.length + ' priorities';
+  document.getElementById('top-priorities').innerHTML = data.top.map(function(t) { return renderPostIt(t); }).join('');
+
+  document.getElementById('deck-count').textContent = data.more.length + ' tasks';
+  document.getElementById('more-tasks').innerHTML = data.more.map(function(t) { return renderPostIt(t, true); }).join('');
+
+  var hasEmail = data.email_highlights && data.email_highlights.length;
+  var hasOverlooked = data.possibly_overlooked && data.possibly_overlooked.length;
+  if (hasEmail || hasOverlooked) {
+    document.getElementById('highlights-label').style.display = '';
+    var grid = document.getElementById('highlights-grid');
+    grid.style.display = '';
+    // If only one panel has data, go full-width; if both, side-by-side
+    if (hasEmail && hasOverlooked) {
+      grid.style.gridTemplateColumns = '1fr 1fr';
+    } else {
+      grid.style.gridTemplateColumns = '1fr';
+    }
+    var html = '';
+    if (hasEmail) {
+      html += '<div class="highlight-panel">';
+      html += '<div class="highlight-panel-header"><span class="panel-icon">\u2709</span>Email Highlights<span class="panel-count">' + data.email_highlights.length + '</span></div>';
+      html += data.email_highlights.map(function(e) {
+        var subjectHtml = e.link
+          ? '<a href="' + encodeURI(e.link) + '" target="_blank">' + escapeHtml(e.subject) + '</a>'
+          : escapeHtml(e.subject);
+        return '<div class="highlight-item">'
+          + '<div class="hl-subject">' + subjectHtml + '</div>'
+          + '<div class="hl-from">' + escapeHtml(e.from) + '</div>'
+          + (e.snippet ? '<div class="hl-snippet">' + escapeHtml(e.snippet) + '</div>' : '')
+          + '<span class="hl-tag ' + escapeHtml(e.tag || 'email') + '">' + escapeHtml(e.tag || 'email') + '</span>'
+          + '</div>';
+      }).join('');
+      html += '</div>';
+    }
+    if (hasOverlooked) {
+      html += '<div class="highlight-panel">';
+      html += '<div class="highlight-panel-header"><span class="panel-icon">\uD83D\uDD0D</span>Might Have Missed<span class="panel-count">' + data.possibly_overlooked.length + '</span></div>';
+      html += data.possibly_overlooked.map(function(e) {
+        var subjectHtml = e.link
+          ? '<a href="' + encodeURI(e.link) + '" target="_blank">' + escapeHtml(e.subject) + '</a>'
+          : escapeHtml(e.subject);
+        return '<div class="highlight-item">'
+          + '<div class="hl-subject">' + subjectHtml + '</div>'
+          + '<div class="hl-from">' + escapeHtml(e.from) + '</div>'
+          + (e.snippet ? '<div class="hl-snippet">' + escapeHtml(e.snippet) + '</div>' : '')
+          + '<span class="hl-tag ' + escapeHtml(e.tag || 'other') + '">' + escapeHtml(e.tag || 'other') + '</span>'
+          + '</div>';
+      }).join('');
+      html += '</div>';
+    }
+    grid.innerHTML = html;
+  }
+
+  if (data.timeline && data.timeline.length) {
+    document.getElementById('timeline-label').style.display = '';
+    document.getElementById('streams-legend').style.display = '';
+    var tl = document.getElementById('timeline');
+    tl.style.display = '';
+    tl.innerHTML = data.timeline.map(function(t) {
+      var cls = t.meeting ? 'timeline-meeting' : 'timeline-task';
+      var indent = t.parallel ? 'margin-left: 36px; opacity: 0.75;' : '';
+      return '<div class="timeline-row" style="' + indent + '"><div class="timeline-time">' + escapeHtml(t.time) + '</div><div class="timeline-bar" style="background:' + escapeHtml(t.bar_color) + '"></div><div class="timeline-content"><div class="' + cls + '">' + (t.parallel ? '\u21B3 ' : '') + escapeHtml(t.task) + '</div>' + (t.note ? '<div class="timeline-note">' + escapeHtml(t.note) + '</div>' : '') + '</div></div>';
+    }).join('');
+  }
+
+  document.getElementById('stats').innerHTML = (data.stats || []).map(function(s) {
+    return '<div class="stat-card"><div class="stat-value">' + escapeHtml(s.value) + '</div><div class="stat-label">' + escapeHtml(s.label) + '</div></div>';
+  }).join('');
+
+  if (data.notes && data.notes.length) {
+    document.getElementById('notes-label').style.display = '';
+    document.getElementById('notes-area').innerHTML = data.notes.map(function(n) {
+      // Notes content comes from our own skill — safe to render basic HTML (bold, links)
+      // Title is always plain text
+      return '<details class="notes-panel"><summary>' + escapeHtml(n.title) + '</summary><div class="note-content">' + (n.content || '') + '</div></details>';
+    }).join('');
+  }
+
+  document.querySelectorAll('.postit').forEach(function(el) {
+    el.addEventListener('click', function(e) {
+      if (e.target.classList.contains('action-btn')) return;
+      el.classList.toggle('expanded');
+    });
+  });
+
+  document.querySelectorAll('.done-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var title = this.dataset.task;
+      var card = this.closest('.postit');
+      card.classList.add('task-done');
+      this.disabled = true;
+      this.textContent = 'Done ✓';
+      google.script.run.withSuccessHandler(function() {}).updateTaskStatus(title, 'Done');
+    });
+  });
+}
+
+function renderPostIt(task, small) {
+  var nudge = task.nudge ? '<span class="nudge-badge">' + escapeHtml(task.nudge) + '</span>' : '';
+  var rank = task.rank ? '<div class="postit-rank">' + escapeHtml(task.rank) + '</div>' : '';
+  var streamClass = task.stream === 'A' ? 'stream-a' : task.stream === 'B' ? 'stream-b' : task.stream === 'A+B' ? 'stream-a' : 'stream-c';
+  var streamLabel = task.stream === 'A+B' ? 'A+B' : (task.stream || '?');
+
+  var tid = Pomo.id(task.title || 'task');
+  var detailHTML = '';
+  if (task.detail) {
+    detailHTML = '<div class="postit-detail">';
+    if (task.detail.context) detailHTML += '<h4>Context</h4><p>' + escapeHtml(task.detail.context) + '</p>';
+    if (task.detail.acceptance) detailHTML += '<h4>Acceptance Criteria</h4><ul>' + task.detail.acceptance.map(function(a) { return '<li>' + escapeHtml(a) + '</li>'; }).join('') + '</ul>';
+    if (task.detail.decision) detailHTML += '<h4>Decision</h4><div class="decision-box">' + escapeHtml(task.detail.decision) + '</div>';
+    if (task.detail.ai_help) detailHTML += '<h4>AI Assist</h4><p>' + escapeHtml(task.detail.ai_help) + '</p>';
+    // Pomodoro timer widget
+    detailHTML += '<div class="pomo-widget" data-pomo-id="' + tid + '">'
+      + '<div class="pomo-label" id="pomo-lbl-' + tid + '">ready</div>'
+      + '<div class="pomo-display idle" id="pomo-disp-' + tid + '">' + Pomo.fmt(POMO_CFG.workMinutes * 60) + '</div>'
+      + '<div class="pomo-controls">'
+      + '<button class="pomo-btn go" id="pomo-go-' + tid + '" onclick="event.stopPropagation();Pomo.start(\'' + tid + '\')">\u25B6 Start</button>'
+      + '<button class="pomo-btn rst" id="pomo-rst-' + tid + '" onclick="event.stopPropagation();Pomo.stop(\'' + tid + '\')" disabled>\u25A0 Reset</button>'
+      + '</div>'
+      + '<div class="pomo-cycle" id="pomo-cyc-' + tid + '">\uD83C\uDF45 0</div>'
+      + '</div>';
+    detailHTML += '</div>';
+  }
+
+  var sourceLink = task.source_link ? '<a href="' + encodeURI(task.source_link) + '" target="_blank" onclick="event.stopPropagation()">' + escapeHtml(task.source) + '</a>' : escapeHtml(task.source || '');
+  var actions = '<div class="postit-actions"><button class="action-btn done-btn" data-task="' + escapeHtml(task.title || '').replace(/"/g, '&quot;') + '">Mark Done</button></div>';
+
+  var titleHtml = task.source_link
+    ? '<a href="' + encodeURI(task.source_link) + '" target="_blank" onclick="event.stopPropagation()">' + escapeHtml(task.title) + '</a>'
+    : escapeHtml(task.title);
+
+  return '<div class="postit ' + (task.color || 'gold-tint') + '">' + rank +
+    '<div class="postit-title">' + titleHtml + '</div>' +
+    '<div class="postit-meta">' + nudge + '<span class="chip">' + escapeHtml(task.est || '?') + '</span><span class="stream-tag ' + streamClass + '">' + escapeHtml(streamLabel) + '</span>' + (task.meta ? '<span class="chip">' + escapeHtml(task.meta) + '</span>' : '') + '</div>' +
+    '<div class="postit-source">' + sourceLink + '</div>' +
+    detailHTML + actions +
+    '<div class="expand-hint">click to expand</div></div>';
+}
+
+render(PLAN_DATA);
+updateNavButtons();
+
+</script>
+</body>
+</html>
