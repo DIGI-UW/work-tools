@@ -5,12 +5,13 @@ import { loadEnv } from "./env.js";
 import type { ToolModule } from "./types.js";
 import { outlook } from "./modules/outlook.js";
 import { harvest } from "./modules/harvest.js";
+import { jira } from "./modules/jira.js";
 
 // Load env vars (.env.local, ~/.work-tools.env)
 loadEnv();
 
 const server = new McpServer({ name: "work-tools", version: "2.0.0" });
-const modules: ToolModule[] = [outlook, harvest];
+const modules: ToolModule[] = [outlook, harvest, jira];
 
 // Register all module tools
 for (const mod of modules) mod.register(server);
