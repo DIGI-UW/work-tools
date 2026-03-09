@@ -15,7 +15,7 @@ function getConfig() {
   return {
     baseUrl: (process.env.JIRA_BASE_URL ?? "").replace(/\/+$/, ""),
     email: process.env.JIRA_EMAIL ?? "",
-    token: process.env.JIRA_API_TOKEN ?? "",
+    token: process.env.JIRA_API_TOKEN ?? process.env.JIRA_TOKEN ?? "",
   };
 }
 
@@ -108,7 +108,7 @@ async function searchIssues(jql: string, maxResults = 50, fields?: string) {
     maxResults: String(maxResults),
     fields: fields ?? "summary,status,priority,assignee,issuetype,project,created,updated,duedate,labels",
   };
-  const data = await apiFetch<SearchResult>("/search", params);
+  const data = await apiFetch<SearchResult>("/search/jql", params);
   return {
     total: data.total,
     issues: data.issues.map(formatIssue),
