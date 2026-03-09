@@ -135,10 +135,22 @@ interface Event {
 
 // ── API functions ──────────────────────────────────────────
 
-async function listEmails(folder = "inbox", limit = 20): Promise<Email[]> {
+async function listEmails(folder = "inbox", limit = 20, skip = 0, fromDate?: string, toDate?: string): Promise<Email[]> {
+  const params: Record<string, string> = {
+    $top: String(limit),
+    $select: "Id,Subject,From,ReceivedDateTime,BodyPreview,IsRead",
+    $orderby: "ReceivedDateTime desc",
+  };
+  if (skip > 0) params.$skip = String(skip);
+  // Build $filter for date range if provided
+  const filters: string[] = [];
+  if (fromDate) filters.push(`ReceivedDateTime ge ${fromDate}T00:00:00Z`);
+  if (toDate) filters.push(`ReceivedDateTime lt ${toDate}T23:59:59Z`);
+  if (filters.length) params.$filter = filters.join(" and ");
+
   const data = await apiFetch<{ value: Email[] }>(
     `/mailfolders/${encodeURIComponent(folder)}/messages`,
-    { $top: String(limit), $select: "Id,Subject,From,ReceivedDateTime,BodyPreview,IsRead", $orderby: "ReceivedDateTime desc" },
+    params,
   );
   return data.value;
 }
@@ -150,9 +162,11 @@ async function readEmail(id: string): Promise<EmailFull> {
 }
 
 async function searchEmails(query: string, limit = 20): Promise<Email[]> {
+  // $orderby is NOT allowed with $search on Graph API (returns 400 SearchWithOrderBy).
+  // Graph search returns relevance-ranked results by default.
   const data = await apiFetch<{ value: Email[] }>("/messages", {
     $top: String(limit), $search: `"${escapeOData(query)}"`,
-    $select: "Id,Subject,From,ReceivedDateTime,BodyPreview,IsRead", $orderby: "ReceivedDateTime desc",
+    $select: "Id,Subject,From,ReceivedDateTime,BodyPreview,IsRead",
   });
   return data.value;
 }
@@ -220,9 +234,12 @@ export const outlook: ToolModule = {
 
     server.tool("outlook_list_emails", "List recent Outlook emails", {
       folder: z.string().optional().describe("Mail folder (default: inbox)"),
-      limit: z.number().int().min(1).max(100).optional().describe("Max emails (1-100, default: 20)"),
-    }, async ({ folder, limit }) => {
-      const emails = await listEmails(folder ?? "inbox", limit ?? 20);
+      limit: z.number().int().min(1).max(200).optional().describe("Max emails (1-200, default: 20)"),
+      skip: z.number().int().min(0).optional().describe("Skip first N emails for pagination (default: 0)"),
+      from_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("Filter: emails on or after this date (YYYY-MM-DD)"),
+      to_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("Filter: emails before this date (YYYY-MM-DD)"),
+    }, async ({ folder, limit, skip, from_date, to_date }) => {
+      const emails = await listEmails(folder ?? "inbox", limit ?? 20, skip ?? 0, from_date, to_date);
       return { content: [{ type: "text", text: JSON.stringify(emails.map((e) => ({
         id: e.Id, subject: e.Subject, from: `${e.From.EmailAddress.Name} <${e.From.EmailAddress.Address}>`,
         date: e.ReceivedDateTime, preview: e.BodyPreview, read: e.IsRead,

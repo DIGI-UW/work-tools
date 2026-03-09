@@ -70,13 +70,25 @@ Query all available data sources. Run these in parallel where possible using sub
 concurrent tool calls. Be resilient — if a source fails, note it and work with what you have.
 
 ### 1.1 Jira
-Use `searchJiraIssuesUsingJql` (you'll need `getAccessibleAtlassianResources` first for the cloudId):
+
+**Try the official Atlassian MCP first** (Claude-native integration). Use `searchJiraIssuesUsingJql`
+(you'll need `getAccessibleAtlassianResources` first for the cloudId):
 - `assignee = currentUser() AND sprint in openSprints() ORDER BY priority DESC`
 - `assignee = currentUser() AND status changed AFTER -1d`
 - `assignee = currentUser() AND duedate <= 7d AND status != Done`
 
+**If the Atlassian MCP fails or is unavailable**, fall back to the **local work-tools MCP** Jira
+tools (API token auth — no cloud ID needed, works reliably in Desktop and Cowork):
+- `jira_my_issues` — your assigned non-Done issues, sorted by last updated
+- `jira_search` with the same JQL queries above
+- `jira_get_issue` — fetch full details (including description) for specific tickets
+
 Focus on: current sprint items, blocked/blocking issues, items approaching deadlines, recently
 transitioned items (momentum indicators).
+
+**Build `jira_summary[]`** from these results for the dashboard (see §3.1). Every issue returned
+should appear in the summary with key, summary, status, priority, and a direct link — regardless
+of which Jira connection was used.
 
 ### 1.2 Slack
 Use `slack_search_public` to find actionable signals:
@@ -101,6 +113,14 @@ Look for:
 
 ### 1.4 Outlook (with fallback)
 **Try** `outlook_list_events` for today and tomorrow, `outlook_list_emails` for flagged items.
+
+**Filter out automated Jira notification emails.** These are redundant — Step 1.1 already has
+the authoritative Jira data via API. Jira notification emails are identifiable by:
+- Sender: contains `@atlassian.net`, `jira@`, or `noreply`
+- Subject: contains a Jira ticket key pattern (e.g., `[JIRA]`, `OGC-123`, `WSG-45`)
+- These add zero signal the API doesn't already have, and clutter `email_highlights[]`
+
+Only surface **human-written emails** that need a reply or contain action items.
 
 **If Outlook fails** (common — requires local token refresh), don't give up on calendar data:
 1. Check Slack for meeting announcements (see 1.2 fallback above)
@@ -147,9 +167,13 @@ features and note that the sheet needs to be initialized.
 
 ### 1.7 Cross-Verify Low-Trust Signals Against Source APIs
 
-After gathering data from all sources, run a cross-verification pass on low-trust signals
-before they enter the priority scoring pipeline. This prevents stale notifications from
-being surfaced as action items when the actual source system tells a different story.
+After gathering data from all sources, run a cross-verification pass on remaining low-trust
+signals before they enter the priority scoring pipeline. This prevents stale notifications
+from being surfaced as action items when the actual source system tells a different story.
+
+**Note:** Jira notification emails are already filtered out in Step 1.4, so they never reach
+this step. The only remaining low-trust signals to verify are Harvest reminders and GitHub
+notification emails.
 
 **The rule:** Any signal from a source with trust ≤ 4 (automated email notifications) that
 references a system with an available API (trust ≥ 9) MUST be verified against that API
@@ -158,12 +182,11 @@ before being surfaced.
 **Verification procedure:**
 
 For each email/notification signal where `source_trust <= 4` and the email references
-a system with an API (Jira, GitHub, Harvest):
+a system with an API (GitHub, Harvest):
 
-1. **Identify the referenced entity** — ticket ID, PR number, week range, etc.
+1. **Identify the referenced entity** — PR number, week range, etc.
 2. **Query the source API for current status:**
    - Harvest reminder email → `harvest_weekly_summary` for the referenced week. If hours are logged, drop the signal.
-   - Jira notification email → `getJiraIssue` for the referenced ticket. If resolved/closed, drop the signal.
    - GitHub notification email → use the GitHub MCP to fetch the referenced PR/issue. If merged/closed, drop the signal.
 3. **Outcome:**
    - **API contradicts email** → drop the signal, log the discrepancy in notes ("Harvest reminder for week of Feb 22 dropped — API shows 40h logged")
@@ -191,7 +214,8 @@ signals carry more weight in priority scoring and conflict resolution.
 | Slack (channel activity) | 7 | Important team context, but noisier than direct mentions |
 | Outlook calendar | 6 | Meeting blocks are useful, but lots of noise (holds, optionals, stale recurring) |
 | Email (human-written) | 6 | Direct communication but mixed signal quality |
-| Email notification (automated from API) | 4 | Often stale, duplicates API data — verify against source before surfacing |
+| Email notification (Harvest/GitHub) | 4 | Often stale, duplicates API data — verify against source before surfacing |
+| Email notification (Jira) | — | **Filtered out in Step 1.4.** Jira data comes from API (Step 1.1). |
 | Planner spreadsheet | — | **NOT a source.** It's a view. See Step 1.6. |
 
 **How trust scores are used:**
@@ -397,6 +421,10 @@ Code.gs transforms it into the dashboard rendering format automatically.
     { "value": "1", "label": "Meetings" },
     { "value": "0h", "label": "Logged" }
   ],
+  "jira_summary": [
+    { "key": "OGC-312", "summary": "Non-Conformity Overhaul", "status": "To be assigned", "priority": "Medium", "type": "Epic", "link": "https://uwdigi.atlassian.net/browse/OGC-312", "overdue": false },
+    { "key": "OGC-303", "summary": "Turn Around Time Reports", "status": "In Progress", "priority": "High", "type": "Task", "link": "https://uwdigi.atlassian.net/browse/OGC-303", "overdue": true }
+  ],
   "email_highlights": [
     { "subject": "Email subject", "from": "Sender Name", "snippet": "Brief preview text", "tag": "email", "link": "https://uwdigi.atlassian.net/browse/OGC-416" }
   ],
@@ -447,7 +475,14 @@ Code.gs transforms it into the dashboard rendering format automatically.
 | | `meeting` | boolean | — | true for meetings (renders with meeting style) |
 | **stats[]** | `value` | string | ✓ | Display value: "4.5h", "2", "0h" |
 | | `label` | string | ✓ | Label: "Hands-On", "AI Parallel", "Meetings", "Logged" |
-| **email_highlights[]** | `subject` | string | ✓ | Email subject line |
+| **jira_summary[]** | `key` | string | ✓ | Issue key: "OGC-312" |
+| | `summary` | string | ✓ | Issue title |
+| | `status` | string | ✓ | Current status: "In Progress", "To be assigned", etc. |
+| | `priority` | string | ✓ | Priority: "High", "Medium", "Low" |
+| | `type` | string | — | Issue type: "Epic", "Task", "Story", "Bug" |
+| | `link` | string | ✓ | Direct URL: `https://{site}.atlassian.net/browse/{KEY}` |
+| | `overdue` | boolean | — | true if duedate is past and status != Done |
+| **email_highlights[]** | `subject` | string | ✓ | Email subject line (human emails only — Jira notifications filtered) |
 | | `from` | string | ✓ | Sender name |
 | | `snippet` | string | ✓ | Brief preview/action needed |
 | | `tag` | string | ✓ | Always "email" for this section |
@@ -485,6 +520,7 @@ Key transformations:
 | `t.color` | → | `card.color` | Auto-assigned from palette if missing |
 | `timeline[]` | → | `timeline[]` | Passed through |
 | `stats[]` | → | `stats[]` | Passed through |
+| `jira_summary[]` | → | `jira_summary[]` | Passed through |
 | `email_highlights[]` | → | `email_highlights[]` | Passed through |
 | `possibly_overlooked[]` | → | `possibly_overlooked[]` | Passed through |
 | `notes[]` | → | `notes[]` | Passed through. **Content rendered as HTML (not escaped).** |
@@ -551,6 +587,9 @@ The dashboard format follows this structure:
     { "value": "1", "label": "Meetings" },
     { "value": "0h", "label": "Logged" }
   ],
+  "jira_summary": [
+    { "key": "OGC-312", "summary": "Non-Conformity Overhaul", "status": "To be assigned", "priority": "Medium", "type": "Epic", "link": "https://...", "overdue": false }
+  ],
   "email_highlights": [
     { "subject": "Email subject", "from": "sender", "snippet": "Brief preview text", "tag": "email", "link": "https://..." }
   ],
@@ -596,30 +635,35 @@ them, the user has to manually navigate to find each item. Use these patterns:
 
 For **tasks[]** and **more_tasks[]**: set `source_link`.
 For **email_highlights[]** and **possibly_overlooked[]**: set `link`.
-When an email notification references a Jira ticket or GitHub PR, use the *underlying item's* URL,
-not the email itself. E.g., a Jira notification email about OGC-416 → link to the Jira ticket URL.
+When an email references a GitHub PR, use the *underlying item's* URL, not the email itself.
+
+**Jira Summary** (`jira_summary[]`): Built from Step 1.1 API results. Every assigned issue should
+appear here with key, summary, status, priority, type, link, and overdue flag. This is the
+dedicated Jira panel — more scannable than scattered email subject lines. Jira data ONLY comes
+from the API, never from email notifications (which are filtered in Step 1.4).
 
 **Email Highlights** (`email_highlights[]`): Populated from Outlook email scan (`outlook_list_emails`).
-Include 3-5 most relevant work emails — action items, important FYIs, things that need a reply.
-Tag each as `"email"`. These are exclusively from Outlook; do NOT mix in Slack or other sources here.
+Include 3-5 most relevant **human-written** work emails — action items, important FYIs, things
+that need a reply. Automated Jira notification emails are filtered out (Step 1.4). Tag each as
+`"email"`. These are exclusively from Outlook; do NOT mix in Slack or other sources here.
 
 **Possibly Overlooked** (`possibly_overlooked[]`): Cross-source signals that might slip through
-the cracks. This is a SEPARATE section from emails. Sources include:
+the cracks. This is a SEPARATE section from emails and Jira. Sources include:
 - Slack: unresponded direct mentions, threads you started but didn't follow up on
 - GitHub: stale PRs (no activity >2 days), review requests you haven't acted on
-- Jira: items approaching deadlines, items others are blocked on
 - General: anything from the data gathering step that didn't make it into the main task list
   but still deserves awareness
-Tag each item as `"slack"`, `"github"`, `"jira"`, or `"other"`.
+Tag each item as `"slack"`, `"github"`, or `"other"`. (Jira items belong in `jira_summary[]`.)
 
-These are two distinct dashboard sections — email_highlights shows a collapsible email summary
-panel, and possibly_overlooked shows a separate "might have missed" panel. Both should always
-be populated when the data sources are available.
+These are three distinct dashboard sections — `jira_summary` shows a scannable ticket table,
+`email_highlights` shows a collapsible email summary panel, and `possibly_overlooked` shows
+a separate "might have missed" panel. All should be populated when the data sources are available.
 
-**Always populate ALL dashboard sections** — don't leave `email_highlights`, `possibly_overlooked`,
-or `notes` as empty arrays. Even on light days, scan Outlook emails for highlights, check for
-stale PRs/Slack mentions for the "possibly overlooked" section, and include data source status
-and AI stream details in notes. An empty dashboard looks broken; a populated one looks useful.
+**Always populate ALL dashboard sections** — don't leave `jira_summary`, `email_highlights`,
+`possibly_overlooked`, or `notes` as empty arrays. Even on light days, include Jira tickets from
+the API, scan Outlook emails for highlights, check for stale PRs/Slack mentions for the
+"possibly overlooked" section, and include data source status and AI stream details in notes.
+An empty dashboard looks broken; a populated one looks useful.
 
 **Keep top titles SHORT** — under 40 characters. Details go in the expandable `detail` object.
 The dashboard renders the top 3 as large sticky notes and the rest as smaller cards. Think of
@@ -640,16 +684,33 @@ detailed view. The chat summary is just the headlines:
 🤖 AI streams: [count] background tasks queued
 📊 [X]h hands-on + [Y]h AI + [Z] meetings
 
-[Dashboard link — read from Config tab key "dashboard_url"]
+📊 Dashboard: <URL>
 ```
 
-**Dashboard URL**: The Apps Script web app URL is stored in the Config tab of the Google Sheet
-(key: `dashboard_url`). After reading Config, include this URL in the chat summary. If the
-Config tab doesn't have the URL yet, remind the user to deploy the Apps Script and add it.
-The URL format is: `https://script.google.com/macros/s/DEPLOYMENT_ID/exec`
+**Dashboard URL — CRITICAL: never let the LLM "type" this URL.** The Apps Script web app URL
+contains opaque deployment IDs with mixed-case characters that LLMs reliably mangle when
+reconstructing from context. Instead:
+
+1. Read the URL from the Config tab (key: `dashboard_url`) into a variable at the start of
+   the planning run (during the `sheets.get_config()` call in Step 1).
+2. Store it as-is — do NOT paraphrase, abbreviate, or re-type it.
+3. In the chat summary, emit the URL by echoing the stored value directly:
+   ```python
+   # In sheets_helper.py or inline:
+   config = sheets.get_config()
+   dashboard_url = config.get("dashboard_url", "")
+   ```
+   Then in the chat output, use the variable: `f"📊 Dashboard: {dashboard_url}"`
+4. If the Config tab doesn't have the URL yet, say: "Deploy the Apps Script and add
+   `dashboard_url` to the Config tab."
+
+**Why:** Opaque strings (deployment IDs, tokens, UUIDs) must flow through tool output and
+variable interpolation, never through LLM text generation. The LLM may drop or swap characters
+in strings it doesn't "understand" — especially mixed-case sequences like `jJ` in Google
+deployment IDs.
 
 The dashboard JSON should also include the URL in a top-level `dashboard_url` field so the
-standalone HTML output can link back to the live version.
+standalone HTML output can link back to the live version. Copy it from the same stored variable.
 
 That's it for the chat output — resist the urge to dump the full plan into chat. The post-it
 dashboard is where the detail lives, and the user can click to expand any card.
