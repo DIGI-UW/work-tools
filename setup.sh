@@ -4,7 +4,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-MCP_DIR="$SCRIPT_DIR/mcp-servers/outlook-harvest"
+MCP_DIR="$SCRIPT_DIR/mcp-servers/work-tools"
 cd "$MCP_DIR"
 
 echo "=== Work Tools Setup ==="

@@ -7,28 +7,27 @@ Local MCP servers and Claude skills for work productivity.
 ```
 work-tools/
 ├── mcp-servers/                 # Local MCP servers (no remote deployment)
-│   └── outlook-harvest/         # Outlook email/calendar + Harvest time tracking
+│   └── work-tools/              # Modular server — Outlook, Harvest, extensible
 ├── skills/                      # Claude skills (each zippable into .skill)
-│   └── daily-planner/           # AI daily planner (Jira, Slack, GitHub, Outlook, Harvest)
+│   ├── daily-planner/           # AI daily planner
+│   ├── weekly-harvest-timesheet/ # Harvest timesheet automation
+│   └── deep-research/           # Multi-source research agent
 ├── setup.sh                     # One-time macOS setup
 └── warmup.sh                    # Pre-session browser token capture
 ```
 
-### MCP Servers
+### MCP Server
 
-**outlook-harvest** — Local MCP server providing 17 tools for Outlook (email, calendar, search) and Harvest (time entries, projects, weekly summaries). Uses browser token capture via Playwright — no Azure admin consent or Harvest developer setup needed.
+**work-tools** — Modular MCP server with drop-in service modules. Currently provides 17 tools for Outlook (email, calendar) and Harvest (time entries, projects). Each service is a self-contained `ToolModule` — adding a new service is one file.
 
 ### Skills
 
 Each skill folder is self-contained and can be zipped into a `.skill` file for Claude Desktop import.
 
-**daily-planner** — AI-powered daily work planner that synthesizes priorities from Jira, Slack, GitHub, Outlook, and Harvest into time-blocked daily plans.
-
 ## Quick Start
 
 ```bash
-git clone https://github.com/pmanko/work-tools.git
+git clone <repo-url>
 cd work-tools
 ./setup.sh       # one-time
-./warmup.sh      # before each session
 ```
