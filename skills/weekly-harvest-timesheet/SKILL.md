@@ -10,7 +10,7 @@ description: |
 ## Prerequisites
 
 **MCP Servers** (register with `claude mcp add --scope user`):
-- `work-tools` — Outlook calendar + Harvest time tracking (local, `mcp-servers/outlook-harvest/`)
+- `work-tools` — Outlook calendar + Harvest time tracking (local, `mcp-servers/work-tools/`)
 - GitHub MCP — PR tracking for project activity
 - Atlassian MCP — Jira issue queries for project mapping
 

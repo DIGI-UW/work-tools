@@ -8,7 +8,7 @@ Work-tools is a monorepo for **local** work productivity tools used with Claude.
 
 | Type | Location | What It Is |
 |------|----------|------------|
-| **MCP Servers** | `mcp-servers/` | Local Node.js processes that expose tools over stdio. Claude Desktop/Code launches them as child processes. They provide raw API access to services like Outlook and Harvest without relying on remote deployments. |
+| **MCP Servers** | `mcp-servers/` | Local Node.js processes that expose tools over stdio. Claude Desktop/Code launches them as child processes. Each service is a self-contained module — drop in a new file, done. |
 | **Claude Skills** | `skills/` | Self-contained folders zippable into `.skill` files for Claude Desktop. Each contains a `SKILL.md` (AI playbook) plus bundled scripts and references that Claude orchestrates during execution. |
 
 These are complementary: MCP servers give Claude **capabilities** (read email, log time), skills give Claude **intelligence** (when to read what, how to prioritize, what to output).
@@ -18,12 +18,15 @@ These are complementary: MCP servers give Claude **capabilities** (read email, l
 ```
 work-tools/
 ├── mcp-servers/
-│   └── outlook-harvest/         # Outlook email/calendar + Harvest time tracking
+│   └── work-tools/              # Modular MCP server — each service is a ToolModule
 │       ├── src/
-│       │   ├── index.ts         # MCP server entry — 17 tool registrations
-│       │   ├── outlook-api.ts   # Outlook REST API client + headless auto-refresh
-│       │   ├── harvest-api.ts   # Harvest V2 API client (PAT or browser token)
-│       │   └── warmup.ts        # Pre-session token capture for both services
+│       │   ├── index.ts         # Thin composition — loads modules, starts server
+│       │   ├── types.ts         # ToolModule interface
+│       │   ├── env.ts           # Shared env loading
+│       │   ├── browser-auth.ts  # Shared Playwright token capture
+│       │   └── modules/
+│       │       ├── outlook.ts   # Outlook email/calendar (7 tools)
+│       │       └── harvest.ts   # Harvest time tracking (9 tools, PAT or browser)
 │       ├── package.json
 │       └── tsconfig.json
 ├── skills/
@@ -45,12 +48,11 @@ work-tools/
 
 ```bash
 # MCP server
-cd mcp-servers/outlook-harvest
+cd mcp-servers/work-tools
 npm install
 npm run build          # tsc → dist/
 npm run dev            # tsx (hot reload)
 npm start              # node dist/index.js (production)
-npm run warmup         # Capture Outlook + Harvest tokens via browser
 
 # From repo root
 ./setup.sh             # One-time setup (installs deps, builds, configures)
@@ -86,27 +88,24 @@ The MCP server loads env vars at startup with this precedence (first set wins):
 
 See `.env.local.example` for the full list of variables. Run `setup.sh` to configure and optionally symlink `~/.work-tools.env` → `.env.local`.
 
-### Adding a New MCP Tool
+### Adding a New Service Module
 
-In `src/index.ts`:
+Create `src/modules/<service>.ts` implementing `ToolModule`:
 ```typescript
-server.tool(
-  "tool_name",
-  "Description",
-  { param: z.string().describe("...") },
-  async ({ param }) => {
-    // Call API
-    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+import type { ToolModule } from "../types.js";
+
+export const myService: ToolModule = {
+  name: "my-service",
+  async status() { return "my-service: OK"; },
+  async warmup() { /* browser auth if needed */ return "my-service: OK"; },
+  register(server) {
+    server.tool("my_tool", "Description", { /* zod schema */ }, async (params) => {
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+    });
   },
-);
+};
 ```
-
-### Adding a New MCP Server
-
-Create `mcp-servers/<name>/` with:
-- `package.json` (must have `"type": "module"`)
-- `tsconfig.json` (copy from outlook-harvest)
-- `src/index.ts` — use `McpServer` + `StdioServerTransport`
+Then add it to the `modules` array in `src/index.ts`.
 
 ## Skills Inventory
 
@@ -116,7 +115,7 @@ Create `mcp-servers/<name>/` with:
 | **weekly-harvest-timesheet** | Semi-supervised Harvest timesheet automation — gathers signals, maps meetings to projects, fills hours | `outlook_list_events`, `outlook_refresh`, `harvest_list_time_entries`, `harvest_create_time_entry` | GitHub MCP, Atlassian MCP (Jira) |
 | **deep-research** | Configurable multi-source research agent producing structured markdown reports | None | PubMed MCP, Google Drive MCP (optional), Atlassian MCP (optional) |
 
-## Tool Inventory (outlook-harvest MCP server)
+## Tool Inventory (work-tools MCP server)
 
 **Shared** (1): `warmup`
 
