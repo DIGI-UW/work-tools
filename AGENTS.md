@@ -26,7 +26,8 @@ work-tools/
 │       │   ├── browser-auth.ts  # Shared Playwright token capture
 │       │   └── modules/
 │       │       ├── outlook.ts   # Outlook email/calendar (7 tools)
-│       │       └── harvest.ts   # Harvest time tracking (9 tools, PAT or browser)
+│       │       ├── harvest.ts   # Harvest time tracking (9 tools, PAT or browser)
+│       │       └── jira.ts      # Jira issue tracking (5 tools, API token)
 │       ├── package.json
 │       └── tsconfig.json
 ├── skills/
@@ -71,12 +72,13 @@ npm start              # node dist/index.js (production)
 
 ### Authentication
 
-Both Outlook and Harvest use **browser token capture** via Playwright — no developer credentials or admin consent needed:
+Outlook and Harvest use **browser token capture** via Playwright. Jira uses **API token** auth (no browser):
 
 1. **Outlook**: Launches Chrome, navigates to `outlook.office365.com`, intercepts Bearer token from network traffic. Token lasts ~15 minutes but **auto-refreshes headlessly** using persistent browser profile SSO cookies. Stored at `~/.outlook-mcp-token.json`.
 2. **Harvest**: Same pattern against `app.harvestapp.com`. Token lasts ~8 hours. Stored at `~/.harvest-mcp-token.json`. Falls back to env vars `HARVEST_ACCESS_TOKEN` + `HARVEST_ACCOUNT_ID` if set.
-3. **Shared browser context**: During warmup, both services share a single Playwright browser context (one Chrome window, two tabs). The `captureToken()` functions accept an optional `existingContext` parameter.
-4. **Harvest submit**: The Harvest V2 API has no submission endpoint. Users submit manually via the Harvest web UI after reviewing entries.
+3. **Jira**: Basic Auth with email + API token (no browser needed). Set `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` (or `JIRA_TOKEN`) env vars. Get a token at: https://id.atlassian.com/manage-profile/security/api-tokens
+4. **Shared browser context**: During warmup, Outlook and Harvest share a single Playwright browser context (one Chrome window, two tabs). Jira doesn't use browser auth.
+5. **Harvest submit**: The Harvest V2 API has no submission endpoint. Users submit manually via the Harvest web UI after reviewing entries.
 
 ### Environment Variables
 
@@ -111,8 +113,8 @@ Then add it to the `modules` array in `src/index.ts`.
 
 | Skill | Purpose | Local MCP Tools | External MCP Dependencies |
 |-------|---------|----------------|--------------------------|
-| **daily-planner** | Synthesizes Jira, Slack, GitHub, Outlook, Harvest into time-blocked daily plans with parallel work streams | `outlook_list_events`, `outlook_list_emails`, `harvest_weekly_summary`, `harvest_list_time_entries` | GitHub MCP, Atlassian MCP (Jira), Slack MCP |
-| **weekly-harvest-timesheet** | Semi-supervised Harvest timesheet automation — gathers signals, maps meetings to projects, fills hours | `outlook_list_events`, `outlook_refresh`, `harvest_list_time_entries`, `harvest_create_time_entry` | GitHub MCP, Atlassian MCP (Jira) |
+| **daily-planner** | Synthesizes Jira, Slack, GitHub, Outlook, Harvest into time-blocked daily plans with parallel work streams | `outlook_list_events`, `outlook_list_emails`, `harvest_weekly_summary`, `harvest_list_time_entries`, `jira_my_issues`, `jira_search` | GitHub MCP, Slack MCP |
+| **weekly-harvest-timesheet** | Semi-supervised Harvest timesheet automation — gathers signals, maps meetings to projects, fills hours | `outlook_list_events`, `outlook_refresh`, `harvest_list_time_entries`, `harvest_create_time_entry`, `jira_my_issues` | GitHub MCP |
 | **deep-research** | Configurable multi-source research agent producing structured markdown reports | None | PubMed MCP, Google Drive MCP (optional), Atlassian MCP (optional) |
 
 ## Tool Inventory (work-tools MCP server)
@@ -125,6 +127,9 @@ Then add it to the `modules` array in `src/index.ts`.
 **Harvest tools** (9):
 `harvest_status`, `harvest_refresh`, `harvest_list_projects`, `harvest_list_tasks`, `harvest_list_time_entries`, `harvest_create_time_entry`, `harvest_update_time_entry`, `harvest_delete_time_entry`, `harvest_weekly_summary`
 
+**Jira tools** (5):
+`jira_status`, `jira_search`, `jira_get_issue`, `jira_my_issues`, `jira_list_projects`
+
 ## External MCP Dependencies
 
 Skills expect these external MCP servers to be configured:
@@ -132,7 +137,7 @@ Skills expect these external MCP servers to be configured:
 | MCP Server | Tools Used | Required By | Setup |
 |-----------|-----------|-------------|-------|
 | **GitHub MCP** (`github`) | `list_pull_requests`, `search_issues`, `pull_request_read`, `issue_read` | daily-planner, weekly-harvest | Works via Claude Code plugins or `claude mcp add --scope user`. Note: Claude Desktop official integration is unreliable. |
-| **Atlassian MCP** | `searchJiraIssuesUsingJql`, `getJiraIssue`, etc. | daily-planner, weekly-harvest | Claude-native integration (cloud ID: `57b4e32d-23d4-4a71-8985-82ac0274d145`) |
+| ~~**Atlassian MCP**~~ | ~~`searchJiraIssuesUsingJql`, `getJiraIssue`, etc.~~ | ~~daily-planner, weekly-harvest~~ | **Replaced by local `jira` module** in work-tools MCP server. The Claude-native Atlassian integration was unreliable in Desktop/Cowork. |
 | **Slack MCP** | `slack_search_public` | daily-planner | Claude-native integration |
 | **PubMed MCP** | `search_articles`, `get_article_metadata`, etc. | deep-research | Claude-native integration |
 | **Google Drive MCP** | `google_drive_search` | deep-research (optional) | Not currently configured |

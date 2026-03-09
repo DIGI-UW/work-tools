@@ -959,7 +959,7 @@ function validateSkillPlan_(plan) {
   });
 
   // ── section arrays ──
-  ['timeline','stats','email_highlights','possibly_overlooked','notes'].forEach(function(key) {
+  ['timeline','stats','jira_summary','email_highlights','possibly_overlooked','notes'].forEach(function(key) {
     if (plan[key] !== undefined && !Array.isArray(plan[key])) {
       warnings.push(key + ' is not an array — coercing');
       plan[key] = [];
@@ -996,9 +996,9 @@ function validateSkillPlan_(plan) {
 /**
  * Convert skill-format plan (with 'tasks' array) to dashboard-format (with 'top'/'more').
  * Skill plans have: meta, tasks[], more_tasks[], timeline[], stats[], notes[],
- *                   email_highlights[], possibly_overlooked[]
+ *                   jira_summary[], email_highlights[], possibly_overlooked[]
  * Dashboard expects: date, generated, plannable_hours, capacity, capacity_label, top[], more[],
- *                    timeline[], stats[], notes[], email_highlights[], possibly_overlooked[]
+ *                    timeline[], stats[], notes[], jira_summary[], email_highlights[], possibly_overlooked[]
  */
 function convertSkillPlanToDashboard_(plan) {
   // Validate and fix common issues before conversion
@@ -1064,6 +1064,7 @@ function convertSkillPlanToDashboard_(plan) {
     capacity_label: meta.capacity_label || meta.note || 'Balanced',
     top: top,
     more: more,
+    jira_summary: plan.jira_summary || [],
     email_highlights: plan.email_highlights || [],
     possibly_overlooked: plan.possibly_overlooked || [],
     timeline: plan.timeline || [],
@@ -1085,6 +1086,7 @@ function getEmptyPlan_() {
     capacity_label: 'No Plan Yet',
     top: [],
     more: [],
+    jira_summary: [],
     email_highlights: [],
     possibly_overlooked: [],
     timeline: [],
