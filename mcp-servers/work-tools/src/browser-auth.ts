@@ -26,7 +26,7 @@ export interface CaptureOptions {
   matchUrl: string;
   /** Extra headers to capture from matching requests */
   extraHeaders?: string[];
-  /** Timeout in ms (default: 90s) */
+  /** Timeout in ms (default: 5 min) */
   timeout?: number;
   /** Run headless (for auto-refresh) */
   headless?: boolean;
@@ -51,10 +51,11 @@ export async function captureBearerToken(
   try {
     const page = await context.newPage();
 
-    const result = await new Promise<CaptureResult>((resolve, reject) => {
+    // Set up listener BEFORE navigating — but don't await yet
+    const tokenPromise = new Promise<CaptureResult>((resolve, reject) => {
       const timer = setTimeout(
-        () => reject(new Error(`Token capture timed out after ${(opts.timeout ?? 90_000) / 1000}s`)),
-        opts.timeout ?? 90_000,
+        () => reject(new Error(`Token capture timed out after ${(opts.timeout ?? 300_000) / 1000}s`)),
+        opts.timeout ?? 300_000,
       );
 
       page.on("request", (req) => {
@@ -73,8 +74,9 @@ export async function captureBearerToken(
       });
     });
 
+    // Navigate — this triggers the requests the listener is watching for
     await page.goto(opts.url);
-    return await result;
+    return await tokenPromise;
   } finally {
     if (ownContext) await context.close();
   }
