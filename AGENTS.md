@@ -166,17 +166,16 @@ skills/built-archive/              # Built .skill files (zip archives)
 Each skill separates **workflow logic** (SKILL.md) from **personal data** (my-config.md). The SKILL.md references config via markdown links like `[references/my-config.md](references/my-config.md#section-name)`.
 
 **Config files per skill:**
-- `my-config.md` — active config used at runtime. **Gitignored on main** to prevent accidental push of personal data. Committed in personal forks.
+- `my-config.md` — active runtime config. **Gitignored** — never committed. Built locally from a named config or copied from the example template.
 - `my-config.example.md` — de-identified template with placeholder values and setup instructions. Always committed.
-- `my-config.<name>.md` — named configs for teammates (e.g., `my-config.jan.md`). Committed to main if the team shares one repo.
+- `my-config.<name>.md` — named configs for teammates (e.g., `my-config.piotr.md`). Committed to the repo.
 
-**Three ways to customize:**
-
-| Approach | How | Best For |
-|----------|-----|----------|
-| **Same repo, named configs** | Create `my-config.jan.md`, build with `--config=jan` | Small team, shared repo |
-| **Fork with own config** | Fork, add `my-config.md` to your fork, pull upstream | Individual contributor |
-| **Private fork** | Same as fork, but private repo | Sensitive personal data |
+**How to customize:**
+1. Copy the example: `cp my-config.example.md my-config.<yourname>.md`
+2. Fill in your personal data (identity, project IDs, meeting mappings, etc.)
+3. Commit your named config: `git add my-config.<yourname>.md`
+4. Build with it: `./build-skills.sh --config=<yourname>`
+5. For local use, the build copies your named config to `my-config.md` automatically
 
 ### Building .skill Files
 

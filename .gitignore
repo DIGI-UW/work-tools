@@ -9,7 +9,7 @@ dist/
 .outlook-mcp-token.json
 .harvest-mcp-token.json
 
-# Skills — personal config (gitignored on main; forks commit their own)
+# Skills — runtime config (built from named configs; never committed directly)
 skills/*/references/my-config.md
 skills/built-archive/templates/
 skills/built-archive/*/
