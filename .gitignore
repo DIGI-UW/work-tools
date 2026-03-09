@@ -14,6 +14,9 @@ skills/*/references/my-config.md
 skills/built-archive/templates/
 skills/built-archive/*/
 
+# Python
+__pycache__/
+
 # OS
 .DS_Store
 Thumbs.db
