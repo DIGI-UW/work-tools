@@ -23,7 +23,7 @@ try {
   // No .env.local — try home-dir fallback
 }
 
-// Fallback: ~/.work-tools.env (works if repo moves, in Cowork VMs, or any context)
+// Fallback: ~/.work-tools.env (works if repo moves, scheduled tasks, any context)
 const homeEnvFile = resolve(process.env.HOME ?? process.env.USERPROFILE ?? "", ".work-tools.env");
 try {
   const lines = readFileSync(homeEnvFile, "utf-8").split("\n");

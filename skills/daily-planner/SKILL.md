@@ -21,7 +21,7 @@ description: >
 - `DAILY_PLANNER_URL` — Apps Script web app URL
 - `DAILY_PLANNER_TOKEN` — Apps Script auth token
 - See `skills/daily-planner/references/setup-guide.md` for Apps Script setup
-- The bundled `scripts/sheets_helper.py` also searches: CWD → `~/mnt/*/` → skill root → `~/.daily-planner.env`
+- The bundled `scripts/sheets_helper.py` also loads from `.env` in CWD if shell env vars aren't set
 
 **Full tool reference:** See [references/work-tools-index.md](references/work-tools-index.md) for all available MCP tools, env vars, and other skills.
 

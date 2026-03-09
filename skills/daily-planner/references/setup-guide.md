@@ -133,38 +133,23 @@ source ~/.zshrc
 Claude can find them when the skill runs. `DAILY_PLANNER_URL` is the address of your
 web app, and `DAILY_PLANNER_TOKEN` is the password that proves the request is from you.
 
-> **Note:** This method works for Claude Code and terminal-based usage. For Cowork mode,
-> use Option B below.
+Local sessions and scheduled tasks in Claude Code Desktop inherit these shell env vars
+automatically — no extra setup needed.
 
-#### Option B: `.env` file (Cowork / sandboxed environments)
+#### Option B: `.env` file in working folder (fallback)
 
-Cowork runs in an isolated Linux VM that does **not** inherit your macOS/Linux shell
-environment (`~/.zshrc`, `~/.bashrc`, etc.). The VM's home directory and CWD also reset
-between sessions. The skill supports a `.env` file fallback for this case.
+If shell env vars aren't available, the skill falls back to a `.env` file in the
+current working directory. Create a `.env` in the folder you select as your task's
+working folder (e.g., `~/Desktop/daily-schedule/`):
 
-**Recommended: Place `.env` in your mounted workspace folder.** When you select a folder
-in Cowork (e.g., a "DailyPlanner" folder on your Mac), it gets mounted at `~/mnt/<FolderName>/`
-inside the VM. This is the only location that persists between sessions.
-
-1. On your Mac, create a `.env` file in the folder you'll select in Cowork:
 ```
 # Daily Planner credentials
 DAILY_PLANNER_URL="https://script.google.com/macros/s/YOUR_ID_HERE/exec"
 DAILY_PLANNER_TOKEN="YOUR_TOKEN_HERE"
 ```
 
-2. In Cowork, select that folder when prompted (or use "Select folder" in settings)
-3. The skill automatically finds `.env` at `~/mnt/<FolderName>/.env`
-
-**Alternative locations** (the skill searches in this order, first found wins):
-1. Current working directory
-2. Any mounted workspace folder (`~/mnt/*/`) — **this is the Cowork-recommended path**
-3. Skill root directory (next to `scripts/`) — read-only in Cowork, so this only works
-   if you bundled `.env` with the skill before installing
-4. `~/.daily-planner.env` — resets between Cowork sessions, not recommended
-
-**Security note:** The `.env` file should not be committed to version control. It is
-included in the skill's `.gitignore` by default.
+The working folder is the persistent local environment for the task — the `.env` file
+there survives across sessions.
 
 ### 3d. Verify it works
 

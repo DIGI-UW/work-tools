@@ -49,7 +49,7 @@ class DailyPlannerSheets:
             token: Shared secret for API auth.
                 Falls back to DAILY_PLANNER_TOKEN env var, then .env file.
         """
-        # Load .env file if env vars are not already set (supports Cowork sandboxed VM)
+        # Load .env file from CWD if env vars are not already set
         if not os.environ.get("DAILY_PLANNER_URL"):
             self._load_dotenv()
 
@@ -69,51 +69,29 @@ class DailyPlannerSheets:
     def _load_dotenv():
         """Load KEY=VALUE pairs from .env file into os.environ.
 
-        Searches these paths in order (first found wins):
-        1. .env in current working directory
-        2. .env in any mounted workspace folder (~/mnt/*/) — Cowork persistent storage
-        3. .env in skill directory (next to scripts/)
-        4. ~/.daily-planner.env
-
+        Searches CWD for a .env file (the working folder for the task).
         Only sets vars that are not already in the environment.
         Supports bare values and single/double-quoted values.
         Lines starting with # are ignored.
         """
-        # Detect mounted workspace folders (Cowork convention: ~/mnt/<FolderName>/)
-        # In the Cowork VM, the user's selected folder is mounted under ~/mnt/ and
-        # persists between sessions — unlike CWD or home dir which reset each time.
-        mnt_candidates = []
-        mnt_base = os.path.expanduser("~/mnt")
-        if os.path.isdir(mnt_base):
-            for entry in sorted(os.listdir(mnt_base)):
-                candidate = os.path.join(mnt_base, entry, ".env")
-                if os.path.isfile(candidate):
-                    mnt_candidates.append(candidate)
-
-        candidates = [
-            os.path.join(os.getcwd(), ".env"),
-            *mnt_candidates,
-            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"),
-            os.path.expanduser("~/.daily-planner.env"),
-        ]
-        for path in candidates:
-            if os.path.isfile(path):
-                with open(path) as f:
-                    for line in f:
-                        line = line.strip()
-                        if not line or line.startswith("#"):
-                            continue
-                        if "=" not in line:
-                            continue
-                        key, _, value = line.partition("=")
-                        key = key.strip()
-                        value = value.strip()
-                        # Strip surrounding quotes
-                        if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
-                            value = value[1:-1]
-                        if key and key not in os.environ:
-                            os.environ[key] = value
-                break  # stop after first .env file found
+        env_path = os.path.join(os.getcwd(), ".env")
+        if not os.path.isfile(env_path):
+            return
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                key = key.strip()
+                value = value.strip()
+                # Strip surrounding quotes
+                if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
+                    value = value[1:-1]
+                if key and key not in os.environ:
+                    os.environ[key] = value
 
     # ── HTTP helpers ──────────────────────────────────────────
 

@@ -82,7 +82,7 @@ The MCP server loads env vars at startup with this precedence (first set wins):
 
 1. **Shell environment** — always takes priority
 2. **`<repo-root>/.env.local`** — resolved via `__dirname` (works regardless of cwd)
-3. **`~/.work-tools.env`** — home-dir fallback (works in Cowork VMs, scheduled tasks, any context)
+3. **`~/.work-tools.env`** — home-dir fallback (works in scheduled tasks, any context)
 
 See `.env.local.example` for the full list of variables. Run `setup.sh` to configure and optionally symlink `~/.work-tools.env` → `.env.local`.
 
