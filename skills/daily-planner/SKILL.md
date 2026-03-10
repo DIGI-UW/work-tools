@@ -31,7 +31,22 @@ This skill supports two tool access modes. Use whichever fits your environment:
 2. Local `work-tools` MCP server tools (`jira_*`, `harvest_*`, `outlook_*`) — full-featured fallback
 3. Bundled Python scripts — self-contained fallback when no MCP server is available
 
-If a tool call fails or the tool is not found, fall back to the next tier silently.
+If a tool call fails or the tool is not found, fall back to the next tier automatically.
+
+**Report which tier was used.** After data gathering, record the tier used for each source in
+`meta.data_sources` and in a `notes[]` entry titled "Data Sources". Use this format:
+- `Jira ✓ (Atlassian MCP)` — tier 1 succeeded
+- `Jira ✓ (local MCP)` — tier 1 failed, fell back to tier 2
+- `Jira ✓ (script)` — tiers 1-2 failed, fell back to bundled script
+- `Jira ✗ (all tiers failed)` — all three tiers failed
+- `Harvest ✓ (local MCP)` — only tier 2 available (no official Claude integration)
+- `Outlook ✓ (local MCP)` — only tier 2 available (no script fallback)
+- `Outlook ✗ (token expired)` — failed with specific error
+
+When a higher tier fails, include the failure reason in the notes entry so the user can fix the
+integration (e.g., "Atlassian MCP: tool not found — check `claude mcp list`",
+"Outlook: 401 token expired — run `warmup`"). Don't hide failures — the user needs to know
+which integrations are broken so they can fix them.
 
 ### External Dependencies
 
@@ -414,7 +429,7 @@ Code.gs transforms it into the dashboard rendering format automatically.
     "plannable_hours": 6.5,
     "capacity": "green",
     "capacity_label": "Focused",
-    "data_sources": "Jira ✓ · Slack ✓ · Outlook ✓ · GitHub ✓"
+    "data_sources": "Jira ✓ (local MCP) · Slack ✓ · Outlook ✗ (token expired) · GitHub ✓ · Harvest ✓ (script)"
   },
   "tasks": [
     {
@@ -475,7 +490,7 @@ Code.gs transforms it into the dashboard rendering format automatically.
   ],
   "notes": [
     { "title": "AI Stream Details", "content": "<b>Stream B:</b> Description of AI work..." },
-    { "title": "Data Sources", "content": "Jira ✓ · Slack ✓ · Outlook ✓ · GitHub ✓" }
+    { "title": "Data Sources", "content": "<b>Jira</b> ✓ (Atlassian MCP) · <b>Slack</b> ✓ · <b>Outlook</b> ✗ token expired — run warmup · <b>GitHub</b> ✓ · <b>Harvest</b> ✓ (local MCP)" }
   ]
 }
 ```
@@ -490,7 +505,7 @@ Code.gs transforms it into the dashboard rendering format automatically.
 | | `plannable_hours` | number | ✓ | Available hours after meetings/buffer |
 | | `capacity` | string | ✓ | "green", "amber", or "red" |
 | | `capacity_label` | string | ✓ | "Balanced", "Focused", "Tight", "Overloaded" |
-| | `data_sources` | string | — | Status of data sources queried |
+| | `data_sources` | string | — | Source status with tier used, e.g. "Jira ✓ (Atlassian MCP) · Outlook ✗ (expired)" |
 | **tasks[]** | `task` | string | ✓ | Task title (under 40 chars). **Must be `task`, not `title`.** |
 | | `priority` | number | ✓ | 1-10 (10 = most urgent). Top 3 by priority become dashboard Focus cards. |
 | | `est_hours` | number | ✓ | Duration in hours. **Must be `est_hours`, not `est_minutes` or `est`.** |
@@ -640,7 +655,7 @@ The dashboard format follows this structure:
   ],
   "notes": [
     { "title": "AI Stream Details", "content": "HTML-safe description..." },
-    { "title": "Data Sources", "content": "Jira ✓ · GitHub ✓ · Outlook ⚠ · ..." }
+    { "title": "Data Sources", "content": "<b>Jira</b> ✓ (local MCP) · <b>GitHub</b> ✓ · <b>Outlook</b> ✗ (token expired — run warmup) · <b>Harvest</b> ✓ (script fallback)" }
   ]
 }
 ```
