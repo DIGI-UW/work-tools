@@ -147,6 +147,8 @@ class HarvestClient:
         data = self._api("/users/me/project_assignments")
         results = []
         for pa in data.get("project_assignments", []):
+            if not pa.get("is_active", True):
+                continue
             p = pa.get("project", {})
             c = pa.get("client", {})
             results.append({
@@ -192,17 +194,18 @@ class HarvestClient:
         else:
             ref = today
         monday = ref - timedelta(days=ref.weekday())
-        friday = monday + timedelta(days=4)
+        sunday = monday + timedelta(days=6)
 
-        entries = self.list_entries(monday.isoformat(), friday.isoformat())
-        total = sum(e["hours"] for e in entries)
+        entries = self.list_entries(monday.isoformat(), sunday.isoformat())
+        total = sum(e["hours"] or 0 for e in entries)
         by_project: dict = {}
         by_day: dict = {}
         for e in entries:
+            hours = e["hours"] or 0
             proj = e["project"] or "Unknown"
-            by_project[proj] = by_project.get(proj, 0) + e["hours"]
+            by_project[proj] = by_project.get(proj, 0) + hours
             day = e["date"]
-            by_day[day] = by_day.get(day, 0) + e["hours"]
+            by_day[day] = by_day.get(day, 0) + hours
 
         return {
             "week_of": monday.isoformat(),
