@@ -83,3 +83,13 @@ The work-tools MCP server loads env vars at startup with this precedence (first 
 **Script execution:**
 - Use `${CLAUDE_SKILL_DIR}` to reference bundled scripts (e.g., `python3 "${CLAUDE_SKILL_DIR}/scripts/sheets_helper.py"`)
 - This works regardless of the working directory
+
+**Self-contained scripts (no MCP server needed):**
+- `scripts/jira_client.py` — Jira REST API v3 client (status, my-issues, search, get-issue, list-projects)
+- `scripts/harvest_client.py` — Harvest V2 API client (status, weekly-summary, list-entries, list-projects)
+- Both are stdlib-only Python 3 — no pip dependencies. Read env vars from shell or `~/.work-tools.env`.
+- Use as fallback when MCP server tools are unavailable:
+  ```bash
+  python3 "${CLAUDE_SKILL_DIR}/scripts/jira_client.py" my-issues --max 10
+  python3 "${CLAUDE_SKILL_DIR}/scripts/harvest_client.py" weekly-summary
+  ```
