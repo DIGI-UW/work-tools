@@ -11,15 +11,41 @@ description: >
 
 ## Prerequisites
 
+### Deployment Modes
+
+This skill supports two tool access modes. Use whichever fits your environment:
+
+**Mode A: MCP Server (default)** — Requires the `work-tools` MCP server to be built and registered.
+- Fastest, most capable (supports Outlook browser auth, Harvest CRUD, all 22 tools)
+- Setup: `git clone` → `npm install && npm run build` → `claude mcp add`
+- See [references/work-tools-index.md](references/work-tools-index.md) for the full tool catalog
+
+**Mode B: Self-Contained Scripts** — No MCP server or git repo needed. Bundled Python scripts call Jira and Harvest APIs directly using only stdlib.
+- Works anywhere Python 3 is available (Claude Desktop, Cowork, offline)
+- Covers: Jira (read-only) and Harvest (read-only) — see `scripts/jira_client.py`, `scripts/harvest_client.py`
+- Does NOT cover: Outlook (requires browser auth), Harvest write ops
+- Run via bash: `python3 "${CLAUDE_SKILL_DIR}/scripts/jira_client.py" my-issues --max 10`
+
+**Tool resolution order:** For each data source, try tools in this order:
+1. Official Claude MCP integration (Atlassian MCP, GitHub MCP, Slack MCP) — most reliable when available
+2. Local `work-tools` MCP server tools (`jira_*`, `harvest_*`, `outlook_*`) — full-featured fallback
+3. Bundled Python scripts — self-contained fallback when no MCP server is available
+
+If a tool call fails or the tool is not found, fall back to the next tier silently.
+
+### External Dependencies
+
 **MCP Servers** (register with `claude mcp add --scope user`):
-- `work-tools` — Outlook email/calendar + Harvest time tracking (local, `mcp-servers/work-tools/`)
+- `work-tools` — Outlook email/calendar + Harvest time tracking + Jira (local, `mcp-servers/work-tools/`) — *Mode A only*
 - GitHub MCP — PR and issue tracking
-- Atlassian MCP — Jira issue queries
+- Atlassian MCP — Jira issue queries (preferred when available; local `jira_*` tools are the fallback)
 - Slack MCP — channel search
 
-**Environment Variables** (loaded by MCP server from `.env.local` or `~/.work-tools.env`):
+**Environment Variables** (loaded by MCP server from `.env.local` or `~/.work-tools.env`, and by bundled scripts from env or `~/.work-tools.env`):
 - `DAILY_PLANNER_URL` — Apps Script web app URL
 - `DAILY_PLANNER_TOKEN` — Apps Script auth token
+- `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` — Required for Jira (both MCP and scripts)
+- `HARVEST_ACCESS_TOKEN`, `HARVEST_ACCOUNT_ID` — Required for Harvest scripts (Mode B)
 - See `skills/daily-planner/references/setup-guide.md` for Apps Script setup
 - The bundled `scripts/sheets_helper.py` also loads from `.env` in CWD if shell env vars aren't set
 
@@ -83,6 +109,14 @@ tools (API token auth — no cloud ID needed, works reliably in Desktop and Cowo
 - `jira_search` with the same JQL queries above
 - `jira_get_issue` — fetch full details (including description) for specific tickets
 
+**If no MCP server is available**, use the **bundled Python script** (self-contained, stdlib-only):
+```bash
+python3 "${CLAUDE_SKILL_DIR}/scripts/jira_client.py" my-issues --max 20
+python3 "${CLAUDE_SKILL_DIR}/scripts/jira_client.py" search "assignee = currentUser() AND sprint in openSprints()" --max 20
+python3 "${CLAUDE_SKILL_DIR}/scripts/jira_client.py" get-issue OGC-312
+```
+Requires `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` env vars (or in `~/.work-tools.env`).
+
 Focus on: current sprint items, blocked/blocking issues, items approaching deadlines, recently
 transitioned items (momentum indicators).
 
@@ -135,6 +169,14 @@ Use `harvest_weekly_summary` and `harvest_list_time_entries` for recent data:
 - Hours logged this week (on track?)
 - Active project distribution
 - Budget utilization
+
+**If no MCP server is available**, use the **bundled Python script**:
+```bash
+python3 "${CLAUDE_SKILL_DIR}/scripts/harvest_client.py" weekly-summary
+python3 "${CLAUDE_SKILL_DIR}/scripts/harvest_client.py" list-entries --from 2025-01-06 --to 2025-01-10
+python3 "${CLAUDE_SKILL_DIR}/scripts/harvest_client.py" list-projects
+```
+Requires `HARVEST_ACCESS_TOKEN`, `HARVEST_ACCOUNT_ID` env vars (or in `~/.work-tools.env`).
 
 ### 1.6 History & Recurring Tasks
 

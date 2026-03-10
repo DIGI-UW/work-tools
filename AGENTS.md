@@ -35,6 +35,9 @@ work-tools/
 │   │   ├── SKILL.md             # Orchestration playbook
 │   │   ├── references/          # Bundled reference docs (sheet structure, setup, etc.)
 │   │   └── scripts/             # Bundled helpers (Apps Script, Python)
+│   │       ├── jira_client.py   # Standalone Jira client (stdlib-only, Mode B)
+│   │       ├── harvest_client.py # Standalone Harvest client (stdlib-only, Mode B)
+│   │       └── test_parity.py   # Parity tests: scripts vs MCP tools
 │   ├── weekly-harvest-timesheet/ # Harvest timesheet automation
 │   │   ├── SKILL.md             # Semi-supervised timesheet workflow
 │   │   └── harvest-timesheet-session-handoff.md  # Inter-session memory
@@ -143,6 +146,27 @@ Skills expect these external MCP servers to be configured:
 | **Google Drive MCP** | `google_drive_search` | deep-research (optional) | Not currently configured |
 
 ## Skill Patterns
+
+### Deployment Modes
+
+Skills support two tool access modes:
+
+**Mode A: MCP Server (default)** — Full-featured. Requires `git clone` → `npm run build` → `claude mcp add`.
+- All 22 tools (Outlook, Harvest, Jira) available
+- Supports browser auth (Outlook, Harvest warmup)
+- Supports write operations (Harvest time entry CRUD)
+
+**Mode B: Self-Contained Scripts** — No MCP server or git repo needed. Bundled Python scripts (stdlib-only) call APIs directly via bash.
+- Currently covers: Jira (read-only) and Harvest (read-only)
+- Does NOT cover: Outlook (requires browser auth), Harvest write ops
+- Scripts: `scripts/jira_client.py`, `scripts/harvest_client.py`
+- Env vars: `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, `HARVEST_ACCESS_TOKEN`, `HARVEST_ACCOUNT_ID`
+- Verify parity: `python3 scripts/test_parity.py` (or `--compare-mcp` to compare against MCP server)
+
+**Tool resolution order** (documented in each SKILL.md):
+1. Official Claude MCP integration (Atlassian, GitHub, Slack)
+2. Local `work-tools` MCP server tools
+3. Bundled Python scripts (self-contained fallback)
 
 ### Skill Folder Structure
 
