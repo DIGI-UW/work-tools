@@ -36,11 +36,28 @@ You are building a prioritized, time-blocked daily work plan by synthesizing dat
 
 **User configuration**: See [references/my-config.md](references/my-config.md) for identity, scope rules, excluded repos/calendars, and Jira/Slack config.
 
-The user is a developer/PM who works with AI agents in parallel — meaning the plan should
-account for 2-3 concurrent work streams: one "hands-on" focus stream and 1-2 "AI-delegatable" streams
-that can run in the background while the user focuses elsewhere.
+### Role-Based Behavior
 
-**Scope: WORK tasks only.** This planner covers professional/development work. Personal tasks,
+Check the **Role → Flavor** field in [references/my-config.md](references/my-config.md#role).
+The flavor changes how you weight data sources and structure the plan:
+
+**`dev` (developer):**
+- Primary signals: Jira sprint items, GitHub PRs/issues, Outlook calendar
+- Email: aggressively filtered — only surface human-written emails with clear action items
+- Plan structure: focus blocks for deep work, meetings as interruptions to schedule around
+- Parallel streams: one hands-on focus stream + 1-2 AI-delegatable background streams
+
+**`pm` (project manager):**
+- Primary signals: Outlook calendar (meetings ARE the work), Outlook email (follow-ups, stakeholder threads)
+- Jira: project-level oversight — blockers across teams, approaching deadlines. Not individual sprint tasks.
+- GitHub: only include if a PR/release directly blocks a deliverable
+- Email: surface broadly — threads needing reply, escalations, stakeholder requests, action items
+- Plan structure: meetings are the core work blocks. Schedule 15-min prep/follow-up slots around each meeting. Non-meeting time is for email catch-up, document review, and delegation.
+- Parallel streams: fewer AI-delegatable tasks (PM work is inherently collaborative)
+
+If no Role is specified, default to `dev`.
+
+**Scope: WORK tasks only.** This planner covers professional work. Personal tasks,
 family errands, and household items must NOT appear in this plan unless the user explicitly asks
 to include them. See [references/my-config.md](references/my-config.md#scope-rules) for specific exclusions.
 
@@ -73,6 +90,10 @@ Triggered at end of day or next morning. Reconciles actual vs planned, updates h
 
 Query all available data sources. Run these in parallel where possible using subagents or
 concurrent tool calls. Be resilient — if a source fails, note it and work with what you have.
+
+**PM mode adjustment:** If the role is `pm`, gather Outlook calendar and email FIRST (they're
+the primary signals). Jira and GitHub are secondary — skip GitHub entirely unless a release
+or PR is specifically relevant to a deliverable the PM is tracking.
 
 ### 1.1 Jira
 
@@ -107,7 +128,9 @@ messages — standup reminders, meeting links, calendar bot posts. Queries like
 This is important because the Outlook local connection sometimes has token issues.
 
 ### 1.3 GitHub
-Use the **GitHub MCP** tools (`mcp__github__list_pull_requests`, `mcp__github__search_pull_requests`,
+**PM mode:** Skip this section unless a specific release or PR is blocking a deliverable.
+
+**Dev mode:** Use the **GitHub MCP** tools (`mcp__github__list_pull_requests`, `mcp__github__search_pull_requests`,
 `mcp__github__search_issues`, `mcp__github__list_issues`) for **work repositories only**.
 Look for:
 - Open PRs authored by the user (CI status, stale?)
@@ -117,7 +140,7 @@ Look for:
 **⚠️ Exclude personal repos** listed in [references/my-config.md](references/my-config.md#excluded-repositories-personal-not-work). Only include work repos.
 
 ### 1.4 Outlook (with fallback)
-**Try** `outlook_list_events` for today and tomorrow, `outlook_list_emails` for flagged items.
+**Try** `outlook_list_events` for today and tomorrow, `outlook_list_emails` for recent items.
 
 **Filter out automated Jira notification emails.** These are redundant — Step 1.1 already has
 the authoritative Jira data via API. Jira notification emails are identifiable by:
@@ -125,7 +148,9 @@ the authoritative Jira data via API. Jira notification emails are identifiable b
 - Subject: contains a Jira ticket key pattern (e.g., `[JIRA]`, `OGC-123`, `WSG-45`)
 - These add zero signal the API doesn't already have, and clutter `email_highlights[]`
 
-Only surface **human-written emails** that need a reply or contain action items.
+**Email filtering by role:**
+- **Dev mode:** Aggressively filter. Only surface human-written emails that need a reply or contain clear action items. Most email is noise for developers.
+- **PM mode:** Surface more broadly. Include threads needing reply, stakeholder requests, escalations, meeting follow-ups, and any email with an action item or decision request. Email is a primary work signal for PMs — err on the side of including rather than filtering.
 
 **If Outlook MCP tools fail** (common — requires local token refresh), use the bundled script
 before falling back to Slack:

@@ -1,4 +1,8 @@
-# Daily Planner — User Configuration
+# Daily Planner — User Configuration (Developer)
+
+## Role
+- **Flavor**: dev
+- **Focus**: Code, PRs, sprint tasks, and technical work. Primary signals are Jira sprint items, GitHub PRs, and Outlook calendar. Email is secondary (filtered for action items only).
 
 ## Identity
 - **Name**: Piotr
