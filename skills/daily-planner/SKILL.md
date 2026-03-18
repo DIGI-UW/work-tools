@@ -188,7 +188,7 @@ Use `harvest_weekly_summary` and `harvest_list_time_entries` for recent data:
 **If no MCP server is available**, use the **bundled Python script**:
 ```bash
 python3 "${CLAUDE_SKILL_DIR}/scripts/harvest_client.py" weekly-summary
-python3 "${CLAUDE_SKILL_DIR}/scripts/harvest_client.py" list-entries --from 2025-01-06 --to 2025-01-10
+python3 "${CLAUDE_SKILL_DIR}/scripts/harvest_client.py" list-entries --from YYYY-MM-DD --to YYYY-MM-DD
 python3 "${CLAUDE_SKILL_DIR}/scripts/harvest_client.py" list-projects
 ```
 Requires `HARVEST_ACCESS_TOKEN`, `HARVEST_ACCOUNT_ID` env vars (or in `~/.work-tools.env`).
