@@ -22,6 +22,7 @@ Usage:
 import argparse
 import json
 import os
+import ssl
 import sys
 import time
 from datetime import datetime, timedelta, timezone
@@ -29,6 +30,15 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+
+
+def _ssl_context() -> ssl.SSLContext:
+    """Create an SSL context that works on macOS framework Python."""
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        return ssl.create_default_context()
 
 # ── Config ─────────────────────────────────────────────────
 
@@ -157,8 +167,9 @@ def api_fetch(path: str, params: dict | None = None) -> dict:
         "Accept": "application/json",
     })
 
+    ctx = _ssl_context()
     try:
-        with urlopen(req) as resp:
+        with urlopen(req, context=ctx) as resp:
             return json.loads(resp.read())
     except HTTPError as e:
         if e.code != 401:
@@ -181,7 +192,7 @@ def api_fetch(path: str, params: dict | None = None) -> dict:
         "Authorization": f"Bearer {new_token}",
         "Accept": "application/json",
     })
-    with urlopen(req) as resp:
+    with urlopen(req, context=ctx) as resp:
         return json.loads(resp.read())
 
 
