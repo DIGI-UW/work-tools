@@ -91,7 +91,12 @@ Use `outlook_list_events` with start_date/end_date for the range. This is the **
 
 **Note:** Google Calendar (`gcal_list_events`) only has personal events for this user. Do NOT use it for work meetings. Use Outlook exclusively for work calendar data.
 
-If the Outlook token is expired, use `outlook_refresh` first.
+If the Outlook token is expired, try `outlook_refresh` first. If the MCP server is unavailable,
+use the daily-planner's bundled script as a fallback:
+```bash
+python3 "${CLAUDE_SKILL_DIR}/../daily-planner/scripts/outlook_client.py" list-events --start YYYY-MM-DD --end YYYY-MM-DD
+```
+The script shares the same token file and Chrome profile as the MCP server.
 
 ### 2c. Pull Jira Activity (secondary signal)
 Use `searchJiraIssuesUsingJql` with the Cloud ID and project mappings from [references/my-config.md](references/my-config.md#jira):

@@ -17,6 +17,20 @@ if ! command -v node &>/dev/null; then
 fi
 echo "  Node.js $(node --version)"
 
+# Check Python + Playwright (needed by bundled outlook_client.py)
+if command -v python3 &>/dev/null; then
+  echo "  Python $(python3 --version 2>&1 | awk '{print $2}')"
+  if python3 -c "import playwright" 2>/dev/null; then
+    echo "  Playwright (Python) installed"
+  else
+    echo "  Installing Playwright for Python (used by outlook_client.py)..."
+    pip3 install playwright 2>&1 | tail -1
+    echo "  Playwright (Python) installed"
+  fi
+else
+  echo "  Python 3 not found — outlook_client.py fallback will be unavailable"
+fi
+
 # Install deps if needed
 if [ ! -d "node_modules" ]; then
   echo "Installing dependencies..."

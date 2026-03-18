@@ -2,6 +2,14 @@
 
 Customize this file with your personal data. Save as `my-config.md` in this directory. The skill references these tables during execution.
 
+## Role
+- **Flavor**: dev | pm
+- **Focus**: (see `my-config.dev.md` or `my-config.pm.md` for role-specific guidance)
+
+Choose your flavor:
+- **dev** — Developer/engineer. Primary signals: Jira sprint items, GitHub PRs, Outlook calendar. Email filtered aggressively.
+- **pm** — Project manager. Primary signals: Outlook calendar and email. Jira for project oversight. GitHub optional.
+
 ## Identity
 - **Name**: Your Name
 - **Email**: you@example.com

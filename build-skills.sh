@@ -5,7 +5,7 @@
 # Usage: ./build-skills.sh [--symlink] [--template] [--config=NAME]
 #   --symlink       Also create/update .claude/skills/ symlinks for Claude Code
 #   --template      Build shareable versions: swap my-config.md for my-config.example.md
-#   --config=NAME   Use my-config.NAME.md instead of my-config.md (e.g., --config=jan)
+#   --config=NAME   Use my-config.NAME.md instead of my-config.md (e.g., --config=dev, --config=pm)
 set -e
 
 SYMLINK=false

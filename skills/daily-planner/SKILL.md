@@ -64,7 +64,9 @@ which integrations are broken so they can fix them.
 - See `skills/daily-planner/references/setup-guide.md` for Apps Script setup
 - The bundled `scripts/sheets_helper.py` also loads from `.env` in CWD if shell env vars aren't set
 
-**Full tool reference:** See [references/work-tools-index.md](references/work-tools-index.md) for all available MCP tools, env vars, and other skills.
+**Outlook script fallback:** When MCP tools fail, the skill can use bundled `scripts/outlook_client.py` (Playwright token capture, same token file as MCP). See [references/work-tools-index.md](references/work-tools-index.md).
+
+**Full tool reference:** See [references/work-tools-index.md](references/work-tools-index.md) for all available MCP tools and other skills.
 
 # Daily Work Planner
 
@@ -72,11 +74,28 @@ You are building a prioritized, time-blocked daily work plan by synthesizing dat
 
 **User configuration**: See [references/my-config.md](references/my-config.md) for identity, scope rules, excluded repos/calendars, and Jira/Slack config.
 
-The user is a developer/PM who works with AI agents in parallel — meaning the plan should
-account for 2-3 concurrent work streams: one "hands-on" focus stream and 1-2 "AI-delegatable" streams
-that can run in the background while the user focuses elsewhere.
+### Role-Based Behavior
 
-**Scope: WORK tasks only.** This planner covers professional/development work. Personal tasks,
+Check the **Role → Flavor** field in [references/my-config.md](references/my-config.md#role).
+The flavor changes how you weight data sources and structure the plan:
+
+**`dev` (developer):**
+- Primary signals: Jira sprint items, GitHub PRs/issues, Outlook calendar
+- Email: aggressively filtered — only surface human-written emails with clear action items
+- Plan structure: focus blocks for deep work, meetings as interruptions to schedule around
+- Parallel streams: one hands-on focus stream + 1-2 AI-delegatable background streams
+
+**`pm` (project manager):**
+- Primary signals: Outlook calendar (meetings ARE the work), Outlook email (follow-ups, stakeholder threads)
+- Jira: project-level oversight — blockers across teams, approaching deadlines. Not individual sprint tasks.
+- GitHub: only include if a PR/release directly blocks a deliverable
+- Email: surface broadly — threads needing reply, escalations, stakeholder requests, action items
+- Plan structure: meetings are the core work blocks. Schedule 15-min prep/follow-up slots around each meeting. Non-meeting time is for email catch-up, document review, and delegation.
+- Parallel streams: fewer AI-delegatable tasks (PM work is inherently collaborative)
+
+If no Role is specified, default to `dev`.
+
+**Scope: WORK tasks only.** This planner covers professional work. Personal tasks,
 family errands, and household items must NOT appear in this plan unless the user explicitly asks
 to include them. See [references/my-config.md](references/my-config.md#scope-rules) for specific exclusions.
 
@@ -109,6 +128,10 @@ Triggered at end of day or next morning. Reconciles actual vs planned, updates h
 
 Query all available data sources. Run these in parallel where possible using subagents or
 concurrent tool calls. Be resilient — if a source fails, note it and work with what you have.
+
+**PM mode adjustment:** If the role is `pm`, gather Outlook calendar and email FIRST (they're
+the primary signals). Jira and GitHub are secondary — skip GitHub entirely unless a release
+or PR is specifically relevant to a deliverable the PM is tracking.
 
 ### 1.1 Jira
 
@@ -151,7 +174,9 @@ messages — standup reminders, meeting links, calendar bot posts. Queries like
 This is important because the Outlook local connection sometimes has token issues.
 
 ### 1.3 GitHub
-Use the **GitHub MCP** tools (`mcp__github__list_pull_requests`, `mcp__github__search_pull_requests`,
+**PM mode:** Skip this section unless a specific release or PR is blocking a deliverable.
+
+**Dev mode:** Use the **GitHub MCP** tools (`mcp__github__list_pull_requests`, `mcp__github__search_pull_requests`,
 `mcp__github__search_issues`, `mcp__github__list_issues`) for **work repositories only**.
 Look for:
 - Open PRs authored by the user (CI status, stale?)
@@ -161,7 +186,7 @@ Look for:
 **⚠️ Exclude personal repos** listed in [references/my-config.md](references/my-config.md#excluded-repositories-personal-not-work). Only include work repos.
 
 ### 1.4 Outlook (with fallback)
-**Try** `outlook_list_events` for today and tomorrow, `outlook_list_emails` for flagged items.
+**Try** `outlook_list_events` for today and tomorrow, `outlook_list_emails` for recent items.
 
 **Filter out automated Jira notification emails.** These are redundant — Step 1.1 already has
 the authoritative Jira data via API. Jira notification emails are identifiable by:
@@ -169,12 +194,29 @@ the authoritative Jira data via API. Jira notification emails are identifiable b
 - Subject: contains a Jira ticket key pattern (e.g., `[JIRA]`, `OGC-123`, `WSG-45`)
 - These add zero signal the API doesn't already have, and clutter `email_highlights[]`
 
-Only surface **human-written emails** that need a reply or contain action items.
+**Email filtering by role:**
+- **Dev mode:** Aggressively filter. Only surface human-written emails that need a reply or contain clear action items. Most email is noise for developers.
+- **PM mode:** Surface more broadly. Include threads needing reply, stakeholder requests, escalations, meeting follow-ups, and any email with an action item or decision request. Email is a primary work signal for PMs — err on the side of including rather than filtering.
 
-**If Outlook fails** (common — requires local token refresh), don't give up on calendar data:
-1. Check Slack for meeting announcements (see 1.2 fallback above)
-2. Note in the plan output that Outlook was unavailable so meeting data may be incomplete
-3. Flag this to the user: "Outlook session expired — meetings may be missing. Run warmup to fix."
+**If Outlook MCP tools fail** (common — requires local token refresh), use the bundled script
+before falling back to Slack:
+
+1. **Tier 2 — Bundled script** (self-contained, no MCP server needed):
+   ```bash
+   python3 "${CLAUDE_SKILL_DIR}/scripts/outlook_client.py" list-events --start YYYY-MM-DD --end YYYY-MM-DD
+   python3 "${CLAUDE_SKILL_DIR}/scripts/outlook_client.py" list-emails --limit 20 --from-date YYYY-MM-DD
+   ```
+   The script uses the same Chrome profile and token file as the MCP server — if one
+   captured a token recently, the other benefits. If the token is expired, the script
+   attempts headless auto-refresh via the persistent browser profile's SSO cookies.
+   Parse the JSON output (same shape as the MCP tool responses).
+
+2. **Tier 3 — Slack search** (if script also fails):
+   Check Slack for meeting announcements (see 1.2 fallback above)
+
+3. **Graceful degradation**: Note in the plan output that Outlook was unavailable so
+   meeting data may be incomplete. Flag this to the user:
+   "Outlook session expired — meetings may be missing. Run `python3 scripts/outlook_client.py refresh` or `warmup` to fix."
 
 **⚠️ Check [references/my-config.md](references/my-config.md#excluded-calendar-sources) for excluded calendar sources.**
 Do not use excluded calendars as work data sources.
@@ -819,18 +861,15 @@ blank spreadsheet: creates all 6 tabs, writes headers with formatted dark-blue h
 sets column widths, populates Config defaults, seeds the Recurring tab with sample tasks,
 adds conditional formatting to the Today tab, and removes the default Sheet1.
 
-**Setup**: Two env vars: `DAILY_PLANNER_URL` (the deployed Apps Script web app URL) and
-`DAILY_PLANNER_TOKEN` (shared secret matching `planner_token` in the Config tab).
-Apps Script has native permissions on its bound spreadsheet — no service account,
-no GCP project, no OAuth, no pip installs.
+**Setup**: The working folder's `.env` file provides `DAILY_PLANNER_URL` (the deployed
+Apps Script web app URL) and `DAILY_PLANNER_TOKEN` (shared secret matching `planner_token`
+in the Config tab). See [references/setup-guide.md](references/setup-guide.md) Part 4.
 
-**Credentials loading**: The `sheets_helper.py` module checks env vars first, then falls back
-to a `.env` file (searched in CWD, mounted workspace folders at `~/mnt/*/`, skill root, or
-`~/.daily-planner.env`). The mounted workspace path is the recommended approach for Cowork —
-it's the only location that persists between sessions. See `references/setup-guide.md` Part 3.
+**Credentials loading**: The `sheets_helper.py` module reads the `.env` file from the
+current working directory. This is why the skill must always run from the planner folder.
 
-**If the env vars are not set**: The skill should still work — skip persistence operations,
-present the plan in chat only, and remind the user to configure per `references/setup-guide.md`.
+**If credentials are not found**: The skill should still work — skip persistence operations,
+present the plan in chat only, and remind the user to set up per `references/setup-guide.md`.
 
 ### Spreadsheet Tabs
 
@@ -887,15 +926,13 @@ If triggered at end of day (or next morning before the new plan), reconcile:
 
 ### Setup Guide
 A complete step-by-step guide is bundled in `references/setup-guide.md`. It covers:
-- Creating a blank spreadsheet and adding the Apps Script code
-- Authorizing and initializing in one click (running `doGet` auto-creates all tabs)
-- Deploying the web app (serves the dashboard AND acts as the API)
-- Setting the shared secret token and two env vars
-- Scheduling the morning auto-run
-- End-to-end testing
+- Picking a planner folder and creating a `.env` settings file
+- Creating a spreadsheet and adding the Apps Script code
+- Authorizing and deploying the web app (dashboard + API in one)
+- Personalizing your config
+- Testing and scheduling the morning auto-run
 
-No service account, no GCP project, no pip installs. ~5 minutes total.
-API calls are authenticated with a shared secret token stored in the Config tab.
+~10 minutes total, no terminal commands required.
 
 If the user asks about setup, configuration, or how to get started, point them to this guide.
 

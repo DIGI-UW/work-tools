@@ -47,13 +47,17 @@ Registered as `work-tools` via `claude mcp add --scope user`. Provides direct AP
 | **Slack MCP** | `slack_search_public`, `slack_read_channel` | Channel search and message reading |
 | **PubMed MCP** | `search_articles`, `get_article_metadata`, `get_full_text_article` | Biomedical literature |
 
-## Environment Variables
+## Settings
 
-The work-tools MCP server loads env vars at startup with this precedence (first set wins):
+Skills load credentials from a `.env` file in the **working folder** (the folder you
+select when starting a Claude session). Always run skills from the same folder so they
+can find their settings.
 
-1. **Shell environment** — always takes priority
-2. **`<repo-root>/.env.local`** — resolved from the MCP server's install path
-3. **`~/.work-tools.env`** — home-dir fallback (works from any working directory)
+**Daily Planner `.env`:**
+```
+DAILY_PLANNER_URL=https://script.google.com/macros/s/.../exec
+DAILY_PLANNER_TOKEN=your-shared-secret
+```
 
 | Variable | Used By | Purpose |
 |----------|---------|---------|
@@ -64,6 +68,8 @@ The work-tools MCP server loads env vars at startup with this precedence (first 
 | `JIRA_API_TOKEN` / `JIRA_TOKEN` | work-tools MCP | Jira API token |
 | `DAILY_PLANNER_URL` | daily-planner skill | Apps Script web app URL |
 | `DAILY_PLANNER_TOKEN` | daily-planner skill | Apps Script auth token |
+
+The MCP server loads from `<repo-root>/.env.local` or `~/.work-tools.env`. See AGENTS.md for setup.
 
 ## Available Skills
 
@@ -76,8 +82,8 @@ The work-tools MCP server loads env vars at startup with this precedence (first 
 ## Common Patterns
 
 **Error handling for MCP tools:**
-- If `outlook_list_events` fails with auth error → call `warmup` or `outlook_refresh`, then retry
-- If `harvest_*` tools return "not configured" → check env vars or call `warmup`
+- If `outlook_list_events` fails with auth error → try the bundled `outlook_client.py` script (see below)
+- If `harvest_*` tools return "not configured" → call `warmup` or check MCP server config
 - Harvest V2 API has no submission endpoint — direct users to https://app.harvestapp.com/time to review and submit
 
 **Script execution:**
@@ -93,3 +99,8 @@ The work-tools MCP server loads env vars at startup with this precedence (first 
   python3 "${CLAUDE_SKILL_DIR}/scripts/jira_client.py" my-issues --max 10
   python3 "${CLAUDE_SKILL_DIR}/scripts/harvest_client.py" weekly-summary
   ```
+
+**Bundled Outlook fallback (daily-planner):**
+- `scripts/outlook_client.py` — standalone Outlook client (Playwright token capture, Office 365 API). Shares token file `~/.outlook-mcp-token.json` and Chrome profile with the MCP server.
+- Usage: `python3 "${CLAUDE_SKILL_DIR}/scripts/outlook_client.py" list-events --start YYYY-MM-DD`, `list-emails --limit 20`
+- Use when `outlook_list_events` / `outlook_list_emails` MCP tools fail. Prerequisite: `pip install playwright`.

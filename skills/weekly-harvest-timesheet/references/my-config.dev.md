@@ -1,4 +1,7 @@
-# Weekly Harvest Timesheet — User Configuration
+# Weekly Harvest Timesheet — User Configuration (Developer)
+
+## Role
+- **Flavor**: dev
 
 ## Identity
 - **Name**: Piotr
