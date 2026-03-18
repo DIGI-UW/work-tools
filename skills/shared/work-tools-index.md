@@ -4,17 +4,17 @@ Shared reference for all skills in the work-tools ecosystem. This file is bundle
 
 ## Available MCP Tools
 
-### work-tools (local — Outlook + Harvest)
+### work-tools (local — Outlook + Harvest + Jira)
 
-Registered as `work-tools` via `claude mcp add --scope user`. Provides direct API access to Outlook and Harvest.
+Registered as `work-tools` via `claude mcp add --scope user`. Provides direct API access to Outlook, Harvest, and Jira.
 
 **Warmup:**
-- `warmup` — Capture auth tokens for both services (opens browser briefly). Call if sessions are expired.
+- `warmup` — Capture auth tokens for browser-based services (opens browser briefly). Call if Outlook/Harvest sessions are expired. Jira uses API token auth and doesn't need warmup.
 
 **Outlook (7 tools):**
 - `outlook_status` — Check session status
 - `outlook_refresh` — Re-authenticate (opens browser)
-- `outlook_list_emails` — List recent emails (folder, limit)
+- `outlook_list_emails` — List recent emails (folder, limit, skip, from_date, to_date)
 - `outlook_read_email` — Read full email by ID
 - `outlook_search_emails` — Search by keyword
 - `outlook_list_events` — Calendar events for a date range (default: next 7 days)
@@ -31,12 +31,19 @@ Registered as `work-tools` via `claude mcp add --scope user`. Provides direct AP
 - `harvest_delete_time_entry` — Delete entry
 - `harvest_weekly_summary` — Hours summary for a week
 
+**Jira (5 tools):**
+- `jira_status` — Check Jira connection status
+- `jira_search` — Search issues using JQL
+- `jira_get_issue` — Get full issue details by key (e.g., OGC-312)
+- `jira_my_issues` — Get issues assigned to you (filterable by status)
+- `jira_list_projects` — List recent Jira projects
+
 ### External MCP Servers
 
 | Server | Key Tools | Notes |
 |--------|-----------|-------|
 | **GitHub MCP** | `list_pull_requests`, `search_issues`, `pull_request_read` | PR/issue tracking across repos |
-| **Atlassian MCP** | `searchJiraIssuesUsingJql`, `getJiraIssue` | Jira issue queries |
+| **Atlassian MCP** | `searchJiraIssuesUsingJql`, `getJiraIssue` | Official cloud integration — preferred when available, but unreliable in Desktop/Cowork. Local `jira_*` tools are the fallback. |
 | **Slack MCP** | `slack_search_public`, `slack_read_channel` | Channel search and message reading |
 | **PubMed MCP** | `search_articles`, `get_article_metadata`, `get_full_text_article` | Biomedical literature |
 
@@ -52,8 +59,17 @@ DAILY_PLANNER_URL=https://script.google.com/macros/s/.../exec
 DAILY_PLANNER_TOKEN=your-shared-secret
 ```
 
-**MCP server settings** (if using work-tools MCP): The MCP server has its own config at
-`<repo-root>/.env.local` or `~/.work-tools.env`. See AGENTS.md for MCP-specific setup.
+| Variable | Used By | Purpose |
+|----------|---------|---------|
+| `HARVEST_ACCESS_TOKEN` | work-tools MCP | Harvest Personal Access Token |
+| `HARVEST_ACCOUNT_ID` | work-tools MCP | Harvest account ID |
+| `JIRA_BASE_URL` | work-tools MCP | Jira Cloud URL (e.g., https://uwdigi.atlassian.net) |
+| `JIRA_EMAIL` | work-tools MCP | Jira account email |
+| `JIRA_API_TOKEN` / `JIRA_TOKEN` | work-tools MCP | Jira API token |
+| `DAILY_PLANNER_URL` | daily-planner skill | Apps Script web app URL |
+| `DAILY_PLANNER_TOKEN` | daily-planner skill | Apps Script auth token |
+
+The MCP server loads from `<repo-root>/.env.local` or `~/.work-tools.env`. See AGENTS.md for setup.
 
 ## Available Skills
 
@@ -74,10 +90,17 @@ DAILY_PLANNER_TOKEN=your-shared-secret
 - Use `${CLAUDE_SKILL_DIR}` to reference bundled scripts (e.g., `python3 "${CLAUDE_SKILL_DIR}/scripts/sheets_helper.py"`)
 - This works regardless of the working directory
 
+**Self-contained scripts (no MCP server needed):**
+- `scripts/jira_client.py` — Jira REST API v3 client (status, my-issues, search, get-issue, list-projects)
+- `scripts/harvest_client.py` — Harvest V2 API client (status, weekly-summary, list-entries, list-projects)
+- Both are stdlib-only Python 3 — no pip dependencies. Read env vars from shell or `~/.work-tools.env`.
+- Use as fallback when MCP server tools are unavailable:
+  ```bash
+  python3 "${CLAUDE_SKILL_DIR}/scripts/jira_client.py" my-issues --max 10
+  python3 "${CLAUDE_SKILL_DIR}/scripts/harvest_client.py" weekly-summary
+  ```
+
 **Bundled Outlook fallback (daily-planner):**
-- `outlook_client.py` — standalone Outlook client that captures auth tokens via Playwright and calls the Office 365 API directly. No MCP server dependency.
-- Shares the same token file (`~/.outlook-mcp-token.json`) and Chrome profile (`~/.work-mcp-profile`) as the MCP server — tokens captured by either path are interchangeable.
-- Usage: `python3 "${CLAUDE_SKILL_DIR}/scripts/outlook_client.py" list-events --start YYYY-MM-DD --end YYYY-MM-DD`
-- Usage: `python3 "${CLAUDE_SKILL_DIR}/scripts/outlook_client.py" list-emails --limit 20 --from-date YYYY-MM-DD`
-- Use as Tier 2 fallback when `outlook_list_events` / `outlook_list_emails` MCP tools fail.
-- Prerequisite: `pip install playwright` (browser binaries shared with Node Playwright)
+- `scripts/outlook_client.py` — standalone Outlook client (Playwright token capture, Office 365 API). Shares token file `~/.outlook-mcp-token.json` and Chrome profile with the MCP server.
+- Usage: `python3 "${CLAUDE_SKILL_DIR}/scripts/outlook_client.py" list-events --start YYYY-MM-DD`, `list-emails --limit 20`
+- Use when `outlook_list_events` / `outlook_list_emails` MCP tools fail. Prerequisite: `pip install playwright`.
