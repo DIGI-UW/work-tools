@@ -122,10 +122,25 @@ the authoritative Jira data via API. Jira notification emails are identifiable b
 
 Only surface **human-written emails** that need a reply or contain action items.
 
-**If Outlook fails** (common — requires local token refresh), don't give up on calendar data:
-1. Check Slack for meeting announcements (see 1.2 fallback above)
-2. Note in the plan output that Outlook was unavailable so meeting data may be incomplete
-3. Flag this to the user: "Outlook session expired — meetings may be missing. Run warmup to fix."
+**If Outlook MCP tools fail** (common — requires local token refresh), use the bundled script
+before falling back to Slack:
+
+1. **Tier 2 — Bundled script** (self-contained, no MCP server needed):
+   ```bash
+   python3 "${CLAUDE_SKILL_DIR}/scripts/outlook_client.py" list-events --start YYYY-MM-DD --end YYYY-MM-DD
+   python3 "${CLAUDE_SKILL_DIR}/scripts/outlook_client.py" list-emails --limit 20 --from-date YYYY-MM-DD
+   ```
+   The script uses the same Chrome profile and token file as the MCP server — if one
+   captured a token recently, the other benefits. If the token is expired, the script
+   attempts headless auto-refresh via the persistent browser profile's SSO cookies.
+   Parse the JSON output (same shape as the MCP tool responses).
+
+2. **Tier 3 — Slack search** (if script also fails):
+   Check Slack for meeting announcements (see 1.2 fallback above)
+
+3. **Graceful degradation**: Note in the plan output that Outlook was unavailable so
+   meeting data may be incomplete. Flag this to the user:
+   "Outlook session expired — meetings may be missing. Run `python3 scripts/outlook_client.py refresh` or `warmup` to fix."
 
 **⚠️ Check [references/my-config.md](references/my-config.md#excluded-calendar-sources) for excluded calendar sources.**
 Do not use excluded calendars as work data sources.

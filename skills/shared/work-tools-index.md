@@ -73,3 +73,11 @@ The work-tools MCP server loads env vars at startup with this precedence (first 
 **Script execution:**
 - Use `${CLAUDE_SKILL_DIR}` to reference bundled scripts (e.g., `python3 "${CLAUDE_SKILL_DIR}/scripts/sheets_helper.py"`)
 - This works regardless of the working directory
+
+**Bundled Outlook fallback (daily-planner):**
+- `outlook_client.py` — standalone Outlook client that captures auth tokens via Playwright and calls the Office 365 API directly. No MCP server dependency.
+- Shares the same token file (`~/.outlook-mcp-token.json`) and Chrome profile (`~/.work-mcp-profile`) as the MCP server — tokens captured by either path are interchangeable.
+- Usage: `python3 "${CLAUDE_SKILL_DIR}/scripts/outlook_client.py" list-events --start YYYY-MM-DD --end YYYY-MM-DD`
+- Usage: `python3 "${CLAUDE_SKILL_DIR}/scripts/outlook_client.py" list-emails --limit 20 --from-date YYYY-MM-DD`
+- Use as Tier 2 fallback when `outlook_list_events` / `outlook_list_emails` MCP tools fail.
+- Prerequisite: `pip install playwright` (browser binaries shared with Node Playwright)
