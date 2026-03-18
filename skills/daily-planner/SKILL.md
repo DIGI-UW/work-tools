@@ -11,19 +11,24 @@ description: >
 
 ## Prerequisites
 
-**MCP Servers** (register with `claude mcp add --scope user`):
-- `work-tools` — Outlook email/calendar + Harvest time tracking (local, `mcp-servers/work-tools/`)
-- GitHub MCP — PR and issue tracking
-- Atlassian MCP — Jira issue queries
-- Slack MCP — channel search
+**Working folder**: The skill must run from a persistent local folder that contains a `.env`
+settings file with your credentials. See [references/setup-guide.md](references/setup-guide.md)
+for the one-time setup walkthrough.
 
-**Environment Variables** (loaded by MCP server from `.env.local` or `~/.work-tools.env`):
-- `DAILY_PLANNER_URL` — Apps Script web app URL
-- `DAILY_PLANNER_TOKEN` — Apps Script auth token
-- See `skills/daily-planner/references/setup-guide.md` for Apps Script setup
-- The bundled `scripts/sheets_helper.py` also loads from `.env` in CWD if shell env vars aren't set
+**Settings file** (`.env` in working folder):
+```
+DAILY_PLANNER_URL=https://script.google.com/macros/s/.../exec
+DAILY_PLANNER_TOKEN=your-shared-secret
+```
 
-**Full tool reference:** See [references/work-tools-index.md](references/work-tools-index.md) for all available MCP tools, env vars, and other skills.
+**Connected services** (optional — the skill adapts to what's available):
+- Outlook — calendar + email. Bundled `scripts/outlook_client.py` handles auth automatically.
+- Jira — issue tracking. Works via Atlassian MCP or local work-tools MCP.
+- GitHub — PR and issue tracking via GitHub MCP.
+- Slack — channel search via Slack MCP.
+- Harvest — time tracking via work-tools MCP.
+
+**Full tool reference:** See [references/work-tools-index.md](references/work-tools-index.md) for all available MCP tools and other skills.
 
 # Daily Work Planner
 
@@ -777,18 +782,15 @@ blank spreadsheet: creates all 6 tabs, writes headers with formatted dark-blue h
 sets column widths, populates Config defaults, seeds the Recurring tab with sample tasks,
 adds conditional formatting to the Today tab, and removes the default Sheet1.
 
-**Setup**: Two env vars: `DAILY_PLANNER_URL` (the deployed Apps Script web app URL) and
-`DAILY_PLANNER_TOKEN` (shared secret matching `planner_token` in the Config tab).
-Apps Script has native permissions on its bound spreadsheet — no service account,
-no GCP project, no OAuth, no pip installs.
+**Setup**: The working folder's `.env` file provides `DAILY_PLANNER_URL` (the deployed
+Apps Script web app URL) and `DAILY_PLANNER_TOKEN` (shared secret matching `planner_token`
+in the Config tab). See [references/setup-guide.md](references/setup-guide.md) Part 4.
 
-**Credentials loading**: The `sheets_helper.py` module checks env vars first, then falls back
-to a `.env` file (searched in CWD, mounted workspace folders at `~/mnt/*/`, skill root, or
-`~/.daily-planner.env`). The mounted workspace path is the recommended approach for Cowork —
-it's the only location that persists between sessions. See `references/setup-guide.md` Part 3.
+**Credentials loading**: The `sheets_helper.py` module reads the `.env` file from the
+current working directory. This is why the skill must always run from the planner folder.
 
-**If the env vars are not set**: The skill should still work — skip persistence operations,
-present the plan in chat only, and remind the user to configure per `references/setup-guide.md`.
+**If credentials are not found**: The skill should still work — skip persistence operations,
+present the plan in chat only, and remind the user to set up per `references/setup-guide.md`.
 
 ### Spreadsheet Tabs
 
@@ -845,15 +847,13 @@ If triggered at end of day (or next morning before the new plan), reconcile:
 
 ### Setup Guide
 A complete step-by-step guide is bundled in `references/setup-guide.md`. It covers:
-- Creating a blank spreadsheet and adding the Apps Script code
-- Authorizing and initializing in one click (running `doGet` auto-creates all tabs)
-- Deploying the web app (serves the dashboard AND acts as the API)
-- Setting the shared secret token and two env vars
-- Scheduling the morning auto-run
-- End-to-end testing
+- Picking a planner folder and creating a `.env` settings file
+- Creating a spreadsheet and adding the Apps Script code
+- Authorizing and deploying the web app (dashboard + API in one)
+- Personalizing your config
+- Testing and scheduling the morning auto-run
 
-No service account, no GCP project, no pip installs. ~5 minutes total.
-API calls are authenticated with a shared secret token stored in the Config tab.
+~10 minutes total, no terminal commands required.
 
 If the user asks about setup, configuration, or how to get started, point them to this guide.
 

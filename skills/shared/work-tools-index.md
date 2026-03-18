@@ -40,20 +40,20 @@ Registered as `work-tools` via `claude mcp add --scope user`. Provides direct AP
 | **Slack MCP** | `slack_search_public`, `slack_read_channel` | Channel search and message reading |
 | **PubMed MCP** | `search_articles`, `get_article_metadata`, `get_full_text_article` | Biomedical literature |
 
-## Environment Variables
+## Settings
 
-The work-tools MCP server loads env vars at startup with this precedence (first set wins):
+Skills load credentials from a `.env` file in the **working folder** (the folder you
+select when starting a Claude session). Always run skills from the same folder so they
+can find their settings.
 
-1. **Shell environment** — always takes priority
-2. **`<repo-root>/.env.local`** — resolved from the MCP server's install path
-3. **`~/.work-tools.env`** — home-dir fallback (works from any working directory)
+**Daily Planner `.env`:**
+```
+DAILY_PLANNER_URL=https://script.google.com/macros/s/.../exec
+DAILY_PLANNER_TOKEN=your-shared-secret
+```
 
-| Variable | Used By | Purpose |
-|----------|---------|---------|
-| `HARVEST_ACCESS_TOKEN` | work-tools MCP | Harvest Personal Access Token |
-| `HARVEST_ACCOUNT_ID` | work-tools MCP | Harvest account ID |
-| `DAILY_PLANNER_URL` | daily-planner skill | Apps Script web app URL |
-| `DAILY_PLANNER_TOKEN` | daily-planner skill | Apps Script auth token |
+**MCP server settings** (if using work-tools MCP): The MCP server has its own config at
+`<repo-root>/.env.local` or `~/.work-tools.env`. See AGENTS.md for MCP-specific setup.
 
 ## Available Skills
 
@@ -66,8 +66,8 @@ The work-tools MCP server loads env vars at startup with this precedence (first 
 ## Common Patterns
 
 **Error handling for MCP tools:**
-- If `outlook_list_events` fails with auth error → call `warmup` or `outlook_refresh`, then retry
-- If `harvest_*` tools return "not configured" → check env vars or call `warmup`
+- If `outlook_list_events` fails with auth error → try the bundled `outlook_client.py` script (see below)
+- If `harvest_*` tools return "not configured" → call `warmup` or check MCP server config
 - Harvest V2 API has no submission endpoint — direct users to https://app.harvestapp.com/time to review and submit
 
 **Script execution:**
