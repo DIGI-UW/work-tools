@@ -177,22 +177,67 @@ async function listTimeEntries(opts: { from?: string; to?: string; project_id?: 
   return apiGet<{ time_entries: TimeEntry[]; total_entries: number }>("/time_entries", params);
 }
 
-async function createTimeEntry(input: { project_id: number; task_id: number; spent_date: string; hours?: number; notes?: string }) {
-  const body: Record<string, unknown> = { project_id: input.project_id, task_id: input.task_id, spent_date: input.spent_date };
-  if (input.notes) body.notes = input.notes;
-  // Use started_time/ended_time because Harvest API ignores `hours` for Member-role accounts
-  if (input.hours != null) {
-    const wholeH = Math.floor(input.hours);
-    const mins = Math.round((input.hours - wholeH) * 60);
-    const endH = 8 + wholeH;
-    body.started_time = "8:00am";
-    body.ended_time = `${endH > 12 ? endH - 12 : endH}:${String(mins).padStart(2, "0")}${endH >= 12 ? "pm" : "am"}`;
+// Harvest API ignores `hours` for Member-role accounts. We always send started_time/ended_time —
+// either explicit (caller-supplied, preferred) or synthesized from hours starting at 8:00am (fallback).
+function to12Hour(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const period = h >= 12 ? "pm" : "am";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, "0")}${period}`;
+}
+
+function synthesizeTimes(hours: number): { started_time: string; ended_time: string } {
+  const wholeH = Math.floor(hours);
+  const mins = Math.round((hours - wholeH) * 60);
+  const endH = 8 + wholeH;
+  return {
+    started_time: "8:00am",
+    ended_time: `${endH > 12 ? endH - 12 : endH}:${String(mins).padStart(2, "0")}${endH >= 12 ? "pm" : "am"}`,
+  };
+}
+
+function applyTimes(
+  body: Record<string, unknown>,
+  input: { hours?: number; started_time?: string; ended_time?: string },
+): void {
+  const hasStart = input.started_time != null;
+  const hasEnd = input.ended_time != null;
+  if (hasStart !== hasEnd) {
+    throw new Error("started_time and ended_time must be provided together (HH:MM 24-hour format).");
   }
+  if (hasStart && hasEnd) {
+    body.started_time = to12Hour(input.started_time!);
+    body.ended_time = to12Hour(input.ended_time!);
+    return;
+  }
+  if (input.hours != null) {
+    Object.assign(body, synthesizeTimes(input.hours));
+  }
+}
+
+async function createTimeEntry(input: {
+  project_id: number; task_id: number; spent_date: string;
+  hours?: number; notes?: string; started_time?: string; ended_time?: string;
+}) {
+  const body: Record<string, unknown> = {
+    project_id: input.project_id, task_id: input.task_id, spent_date: input.spent_date,
+  };
+  if (input.notes) body.notes = input.notes;
+  applyTimes(body, input);
   return apiPost<TimeEntry>("/time_entries", body);
 }
 
-async function updateTimeEntry(entryId: number, input: { hours?: number; notes?: string }) {
-  return apiPatch<TimeEntry>(`/time_entries/${entryId}`, input);
+async function updateTimeEntry(entryId: number, input: {
+  hours?: number; notes?: string; started_time?: string; ended_time?: string;
+  project_id?: number; task_id?: number; spent_date?: string;
+}) {
+  const body: Record<string, unknown> = {};
+  if (input.project_id != null) body.project_id = input.project_id;
+  if (input.task_id != null) body.task_id = input.task_id;
+  if (input.spent_date != null) body.spent_date = input.spent_date;
+  if (input.notes != null) body.notes = input.notes;
+  applyTimes(body, input);
+  return apiPatch<TimeEntry>(`/time_entries/${entryId}`, body);
 }
 
 async function deleteTimeEntry(entryId: number) {
@@ -284,24 +329,36 @@ export const harvest: ToolModule = {
       return { content: [{ type: "text", text: JSON.stringify(await listTimeEntries({ from, to, project_id, per_page: 100 }), null, 2) }] };
     });
 
-    server.tool("harvest_create_time_entry", "Create a Harvest time entry (hours logged, no timer)", {
+    const timeRegex = /^([01]?\d|2[0-3]):[0-5]\d$/;
+
+    server.tool("harvest_create_time_entry", "Create a Harvest time entry. Provide either hours (placed at 8am) or started_time+ended_time (HH:MM 24h) for exact placement.", {
       project_id: z.number().int().positive().describe("Harvest project ID"),
       task_id: z.number().int().positive().describe("Harvest task ID"),
       spent_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Date (YYYY-MM-DD)"),
-      hours: z.number().positive().max(24).describe("Hours worked"),
+      hours: z.number().positive().max(24).optional().describe("Hours worked. Ignored if started_time/ended_time provided."),
       notes: z.string().max(255).optional().describe("Notes"),
-    }, async ({ project_id, task_id, spent_date, hours, notes }) => {
+      started_time: z.string().regex(timeRegex).optional().describe("Start time (HH:MM 24-hour, e.g. '14:00'). Must be paired with ended_time."),
+      ended_time: z.string().regex(timeRegex).optional().describe("End time (HH:MM 24-hour, e.g. '16:30'). Must be paired with started_time."),
+    }, async ({ project_id, task_id, spent_date, hours, notes, started_time, ended_time }) => {
       guard();
-      return { content: [{ type: "text", text: JSON.stringify(await createTimeEntry({ project_id, task_id, spent_date, hours, notes }), null, 2) }] };
+      if (hours == null && (started_time == null || ended_time == null)) {
+        throw new Error("Provide either `hours` or both `started_time` and `ended_time`.");
+      }
+      return { content: [{ type: "text", text: JSON.stringify(await createTimeEntry({ project_id, task_id, spent_date, hours, notes, started_time, ended_time }), null, 2) }] };
     });
 
-    server.tool("harvest_update_time_entry", "Update an existing Harvest time entry", {
+    server.tool("harvest_update_time_entry", "Update an existing Harvest time entry. Any field can be changed; provide started_time+ended_time together to shift the entry's time-of-day.", {
       entry_id: z.number().int().positive().describe("Time entry ID"),
-      hours: z.number().positive().max(24).optional().describe("Updated hours"),
+      hours: z.number().positive().max(24).optional().describe("Updated hours. Ignored if started_time/ended_time provided."),
       notes: z.string().max(255).optional().describe("Updated notes"),
-    }, async ({ entry_id, hours, notes }) => {
+      started_time: z.string().regex(timeRegex).optional().describe("Start time (HH:MM 24-hour). Must be paired with ended_time."),
+      ended_time: z.string().regex(timeRegex).optional().describe("End time (HH:MM 24-hour). Must be paired with started_time."),
+      project_id: z.number().int().positive().optional().describe("Move entry to a different project"),
+      task_id: z.number().int().positive().optional().describe("Move entry to a different task"),
+      spent_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("Move entry to a different date (YYYY-MM-DD)"),
+    }, async ({ entry_id, hours, notes, started_time, ended_time, project_id, task_id, spent_date }) => {
       guard();
-      return { content: [{ type: "text", text: JSON.stringify(await updateTimeEntry(entry_id, { hours, notes }), null, 2) }] };
+      return { content: [{ type: "text", text: JSON.stringify(await updateTimeEntry(entry_id, { hours, notes, started_time, ended_time, project_id, task_id, spent_date }), null, 2) }] };
     });
 
     server.tool("harvest_delete_time_entry", "Delete a Harvest time entry", {
