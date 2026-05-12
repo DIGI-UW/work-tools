@@ -140,26 +140,36 @@ Do NOT ask the user open-ended questions — present options and let them respon
 
 ## Step 4: Build Day-by-Day Allocation
 
-For each working day:
+For each working day, build **two parallel lists** so meeting time-of-day is preserved all the way to Harvest:
 
-1. **Place meeting hours** on their actual calendar day, assigned to the mapped project
-2. **Round up** every meeting to minimum 1 hour
-3. **Fill remaining hours** to reach 8h with project work, distributed based on:
-   - Forecast ratios (Madagascar and Gold Star typically dominate)
-   - Jira/GitHub signals for the day
-   - Aim for 2-3 projects per day, one dominant (4-6h)
-4. **OOO days**: Full 8h to Out of Office
+**(a) Meeting entries** — one per attended calendar event:
+- Carry the real `start_time` and `end_time` from the Outlook event (preserved as HH:MM 24-hour)
+- Carry the mapped `project_id` / `task_id`
+- Notes = the actual meeting title (e.g., "Madagascar Meetup")
+- Hours = the meeting's true duration (may be fractional, e.g., 0.5 for a 30-minute standup)
+- **Do not round up individual meetings** — sub-hour meetings stay sub-hour. Rounding happens at the project-fill level (below).
+
+**(b) Project-fill entries** — one per (project, day) gap to reach 8h:
+- Hours = `8 − sum(meeting hours that day) − pto/ooo hours`, distributed across projects based on:
+  - Forecast ratios (Madagascar and Gold Star typically dominate)
+  - Jira/GitHub signals for the day
+  - Aim for 2-3 fill-projects per day, one dominant (4-6h)
+- **Rounding lives here**: round each fill block to whole hours; the fill total absorbs any rounding from the meeting times so the day still totals exactly 8h.
+- Place fill blocks in unoccupied parts of the 7:00am–4:00pm work day. Prefer a contiguous afternoon block (12:00–16:00) for the dominant fill project; smaller fill blocks fill gaps between morning meetings or before the first meeting. When multiple projects have fill, tile them sequentially with no overlap.
+
+**OOO days**: skip both lists; emit a single 8h Out-of-Office entry instead.
 
 ### Time Block Rules
 - Default work hours: 7am–4pm PST
-- Ideally consolidated project work blocks 12pm–4pm
-- **Meetings outside work hours still count** — some recurring meetings (e.g., Madagascar Meetup at 6am PST, Mekom at 7:30am) are scheduled early due to timezone differences. If the user attends them, include them in the day's hours regardless of the time slot.
-- Project work filler should stay within 7am–4pm
+- Project-fill blocks land between 07:00 and 16:00 (4pm) wherever the calendar is empty; the dominant project's fill prefers the 12:00–16:00 afternoon block. Tile sequentially when multiple projects have fill that day, with no overlap.
+- **Meetings outside work hours still count** — some recurring meetings (e.g., Madagascar Meetup at 6am PST, Mekom at 7:30am) are scheduled early due to timezone differences. Their entries keep their actual early-morning start_time/ended_time.
+- If two source events overlap on the calendar (e.g., a 30-min meeting nested inside a 1h block), present them to the user in Step 5 and ask which one was actually attended — only emit an entry for that one.
 
 ## Step 5: Present the Draft
 
-Display a clean summary table:
+Display two views — the per-day aggregate (for the eyeball check) **and** the time-of-day placement (so the user can spot wrong meeting categorizations before submission).
 
+**Aggregate view (project hours per day):**
 ```
 Date         Day  Mad  GS  Haiti  DG  WHO  Eth  OOO  Tot
 ----------------------------------------------------------
@@ -168,20 +178,37 @@ Date         Day  Mad  GS  Haiti  DG  WHO  Eth  OOO  Tot
 ...
 ----------------------------------------------------------
 TOTAL              47  31   10   29    2    1   40   160
+```
 
-Meeting-based entries:
-- Mon 2: Madagascar review (Mad 1h), OpenELIS Dev (Mad 1h), DIGI Team (DG 1h)
-- Tue 3: Madagascar Meetup (Mad 1h), CHARESS (Haiti 1h), I-TECH (DG 1h), Ian&Piotr (DG 1h)
+**Time-of-day view (per-meeting + fill blocks, one block of lines per day):**
+```
+Mon 2026-02-02
+  09:00–10:00  Mad    Madagascar review                  (1.0h)
+  10:00–11:00  Mad    OpenELIS Dev                       (1.0h)
+  11:00–12:00  DG     DIGI Team                          (1.0h)
+  07:00–08:00  Haiti  project fill                       (1.0h, early gap)
+  12:00–14:00  Mad    project fill                       (2.0h)
+  14:00–16:00  GS     project fill                       (2.0h)
+
+Tue 2026-02-03
+  06:00–06:30  Mad    Madagascar Meetup                  (0.5h)
+  09:00–10:00  Haiti  CHARESS                            (1.0h)
+  10:00–11:00  DG     I-TECH                             (1.0h)
+  11:00–12:00  DG     Ian & Piotr 1:1                    (1.0h)
+  12:00–14:30  Mad    project fill                       (2.5h)
+  14:30–16:00  GS     project fill                       (1.5h)
 ...
+```
 
-Forecast comparison:
+**Forecast comparison:**
+```
 - Madagascar: 47h actual vs 62h forecast — under (offset by DIGI General meetings)
 - Gold Star: 31h actual vs 60h forecast — under (new project, ramping up)
 - Haiti: 10h actual vs 20h forecast — under
 - DIGI General: 29h actual vs ~0h forecast — expected (meeting catch-all)
 ```
 
-Then ask: **"Does this look right? You can adjust specific days/projects, or approve to submit."**
+Then ask: **"Does this look right? You can adjust specific days/projects/times, or approve to submit."**
 
 ## Step 6: Handle Adjustments
 
@@ -195,14 +222,39 @@ Apply changes, re-verify all days = 8h, re-display affected rows.
 
 ## Step 7: Submit to Harvest
 
-Create entries using `harvest_create_time_entry` for each line item:
-- `project_id`, `task_id`, `spent_date` (YYYY-MM-DD), `hours`, `notes`
+Create entries using `harvest_create_time_entry`. Always pass `started_time` + `ended_time` (HH:MM 24-hour) so each entry lands at its real time-of-day in Harvest — never rely on the 8am-synthesis fallback.
 
-**Important:** Always pass `hours` explicitly. Do NOT rely on timer-based entry creation.
+**For meeting entries:** pass the calendar event's actual start/end times.
+```
+harvest_create_time_entry(
+  project_id = <mapped>,
+  task_id    = <mapped>,
+  spent_date = "2026-02-02",
+  started_time = "09:00",
+  ended_time   = "10:00",
+  notes      = "Madagascar review",
+)
+```
 
-After all entries are created, verify with `harvest_list_time_entries` for the date range and confirm totals match the approved draft.
+**For project-fill entries:** pass the 12pm–4pm placement times computed in Step 4 (tiled when multiple projects have fill that day).
+```
+harvest_create_time_entry(
+  project_id = <Madagascar>,
+  task_id    = <task>,
+  spent_date = "2026-02-02",
+  started_time = "12:00",
+  ended_time   = "14:00",
+  notes      = "Project work — Madagascar",
+)
+```
 
-Report: "Created [N] entries totaling [X] hours for [date range]. Review and submit at https://app.harvestapp.com/time"
+**For Out-of-Office days:** a single 08:00–16:00 entry to the OOO project.
+
+Do NOT pass `hours` when `started_time` + `ended_time` are both provided — Harvest computes hours from the duration, and passing both can produce ambiguous behavior. Hours-only entries silently no-op on Member-role accounts.
+
+After all entries are created, verify with `harvest_list_time_entries` for the date range and confirm both totals and time-of-day placement match the approved draft.
+
+Report: "Created [N] entries totaling [X] hours for [date range], placed at their actual times. Review and submit at https://app.harvestapp.com/time"
 
 ## Step 8: Validation
 
@@ -210,9 +262,10 @@ After submission, run these checks:
 1. **Daily totals**: Every working day = exactly 8h
 2. **Weekly totals**: Every working week = exactly 40h (or proportional if partial week)
 3. **Project totals**: Compare actuals to approved draft — should match exactly
-4. **No duplicates**: No two entries for the same project on the same day
-5. **No orphans**: No days with 0h in the working period
-6. **Task IDs valid**: All entries use correct task IDs per project
+4. **No time overlaps**: No two entries on the same day with overlapping `started_time`/`ended_time`. Multiple entries per project per day are expected now (one per meeting + a fill block), but their time intervals must be disjoint.
+5. **All entries have times**: Every entry has both `started_time` and `ended_time` set — if any landed at 8:00am-synthesized times, that's a regression and should be re-submitted.
+6. **No orphans**: No days with 0h in the working period
+7. **Task IDs valid**: All entries use correct task IDs per project
 
 If any check fails, report the discrepancy and ask the user how to fix it.
 
@@ -236,5 +289,6 @@ Workflow configuration (not personalized):
 - **Primary calendar source**: Outlook (`outlook_list_events`) — NOT Google Calendar
 - **FY26 forecast reference**: Check working directory → Google Drive → ask user → fall back to config table
 - **Automation level**: semi-supervised — always present draft and wait for approval
-- **Rounding**: whole hours only, minimum 1h per entry
+- **Rounding**: project-fill blocks round to whole hours; individual meeting entries keep their real durations (may be fractional). Project-fill absorbs any rounding so each day totals exactly 8h.
 - **Daily total**: exactly 8h
+- **Time-of-day**: every Harvest entry is submitted with explicit `started_time`/`ended_time` — meetings at their real calendar times, project-fill in the 12pm–4pm window

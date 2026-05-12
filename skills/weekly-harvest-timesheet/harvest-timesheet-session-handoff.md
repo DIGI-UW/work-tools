@@ -25,7 +25,7 @@
 2. **Meeting-to-project mapping is stable** — same recurring meetings each week, categorization rarely changes
 3. **DIGI General absorbs ~24h/month in meetings** — Dev weekly (2h×4), DIGI Team (1h×3-4), 1:1s, workforce, retreats
 4. **Forecast numbers were initially wrong** — corrected Haiti to 20h, Madagascar to 62h, Gold Star to 60h
-5. **Harvest API bug**: `create_time_entry` with `hours` param may start a timer instead of setting hours. Need to verify and potentially use `update_time_entry` to fix.
+5. **Harvest API quirk (resolved)**: Harvest's API ignores raw `hours` for Member-role accounts. The `work-tools` MCP server now always submits `started_time`/`ended_time` (real calendar times for meetings, 12pm–4pm placement for project fill). Updating an existing entry's `hours` via the MCP used to be a silent no-op for Member-role accounts; fixed in PR #9. Always pass times explicitly when creating or updating entries.
 6. **Gold Star task is External Billable** (task 23300925), not Non-Billable as previously documented
 
 ### New Meetings Added to Mapping

@@ -26,8 +26,8 @@ Registered as `work-tools` via `claude mcp add --scope user`. Provides direct AP
 - `harvest_list_projects` — List assigned projects
 - `harvest_list_tasks` — List tasks for a project
 - `harvest_list_time_entries` — Time entries by date range
-- `harvest_create_time_entry` — Create entry (project_id, task_id, spent_date, hours, notes)
-- `harvest_update_time_entry` — Update entry (entry_id, hours, notes)
+- `harvest_create_time_entry` — Create entry (project_id, task_id, spent_date, hours OR started_time+ended_time, notes). Pass `started_time`/`ended_time` (HH:MM 24-hour) for exact time-of-day placement; passing only `hours` synthesizes an 8am-onward block.
+- `harvest_update_time_entry` — Update entry (entry_id, plus any of: hours, notes, started_time, ended_time, project_id, task_id, spent_date). Updating only `hours` is a silent no-op for Member-role accounts on the Harvest API; always pass started_time+ended_time when changing duration.
 - `harvest_delete_time_entry` — Delete entry
 - `harvest_weekly_summary` — Hours summary for a week
 
