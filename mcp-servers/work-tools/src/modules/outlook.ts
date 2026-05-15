@@ -92,13 +92,42 @@ function escapeOData(q: string): string {
   return q.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
+/** Timezone Microsoft Graph should return date-time fields in.
+ *
+ *  Priority:
+ *    1. $OUTLOOK_TIMEZONE  — explicit IANA name (e.g. "America/Los_Angeles")
+ *    2. Auto-detected from the host (Intl.DateTimeFormat — works on every modern Node)
+ *    3. "UTC" as a defensive last resort
+ *
+ *  Sent as `Prefer: outlook.timezone="<zone>"` on every Graph call. Affects calendar
+ *  event start/end values and email received/sent timestamps; if the header is absent,
+ *  Graph defaults to UTC, which silently misaligns downstream timesheets and digests
+ *  for any non-UTC user. Microsoft Graph has accepted IANA names since 2019.
+ */
+function getOutlookTimezone(): string {
+  const override = (process.env.OUTLOOK_TIMEZONE ?? "").trim();
+  if (override) return override;
+  try {
+    const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (detected) return detected;
+  } catch { /* fall through */ }
+  return "UTC";
+}
+
+function baseHeaders(token: string): Record<string, string> {
+  return {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/json",
+    Prefer: `outlook.timezone="${getOutlookTimezone()}"`,
+  };
+}
+
 async function apiFetch<T>(path: string, params?: Record<string, string>): Promise<T> {
   const token = await getToken();
   const url = new URL(`${API_BASE}${path}`);
   if (params) for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
 
-  const headers = { Authorization: `Bearer ${token}`, Accept: "application/json" };
-  let res = await fetch(url.toString(), { headers });
+  let res = await fetch(url.toString(), { headers: baseHeaders(token) });
 
   if (res.status === 401) {
     cachedToken = null;
@@ -106,9 +135,7 @@ async function apiFetch<T>(path: string, params?: Record<string, string>): Promi
     try { await capture(undefined, true); } catch {
       throw new Error("Outlook token expired and auto-refresh failed. Run outlook_refresh.");
     }
-    res = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${cachedToken}`, Accept: "application/json" },
-    });
+    res = await fetch(url.toString(), { headers: baseHeaders(cachedToken!) });
     if (!res.ok) throw new Error(`Outlook API ${res.status} after refresh: ${await res.text()}`);
     return res.json() as Promise<T>;
   }

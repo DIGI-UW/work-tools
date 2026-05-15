@@ -68,6 +68,7 @@ DAILY_PLANNER_TOKEN=your-shared-secret
 | `JIRA_API_TOKEN` / `JIRA_TOKEN` | work-tools MCP | Jira API token |
 | `DAILY_PLANNER_URL` | daily-planner skill | Apps Script web app URL |
 | `DAILY_PLANNER_TOKEN` | daily-planner skill | Apps Script auth token |
+| `OUTLOOK_TIMEZONE` | work-tools MCP | Optional. IANA timezone (e.g. `America/Los_Angeles`) that Outlook tools return calendar/email times in. Defaults to the host's `Intl.DateTimeFormat` timezone. **Calendar event start/end values are NOT UTC — they're in this zone**, so HH:MM substrings can be passed directly to `harvest_create_time_entry`. |
 
 The MCP server loads from `<repo-root>/.env.local` or `~/.work-tools.env`. See AGENTS.md for setup.
 
