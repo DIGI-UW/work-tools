@@ -77,7 +77,7 @@ npm start              # node dist/index.js (production)
 
 Outlook and Harvest use **browser token capture** via Playwright. Jira uses **API token** auth (no browser):
 
-1. **Outlook**: Launches Chrome, navigates to `outlook.office365.com`, intercepts Bearer token from network traffic. Token lasts ~15 minutes but **auto-refreshes headlessly** using persistent browser profile SSO cookies. Stored at `~/.outlook-mcp-token.json`.
+1. **Outlook**: Launches Chrome, navigates to `outlook.office365.com`, intercepts Bearer token from network traffic. Token lasts ~15 minutes but **auto-refreshes headlessly** using persistent browser profile SSO cookies. Stored at `~/.outlook-mcp-token.json`. Calendar / email date-time values are returned in the host's IANA timezone (or `$OUTLOOK_TIMEZONE` if set) via the `Prefer: outlook.timezone="..."` header — **not UTC**.
 2. **Harvest**: Same pattern against `app.harvestapp.com`. Token lasts ~8 hours. Stored at `~/.harvest-mcp-token.json`. Falls back to env vars `HARVEST_ACCESS_TOKEN` + `HARVEST_ACCOUNT_ID` if set.
 3. **Jira**: Basic Auth with email + API token (no browser needed). Set `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` (or `JIRA_TOKEN`) env vars. Get a token at: https://id.atlassian.com/manage-profile/security/api-tokens
 4. **Shared browser context**: During warmup, Outlook and Harvest share a single Playwright browser context (one Chrome window, two tabs). Jira doesn't use browser auth.

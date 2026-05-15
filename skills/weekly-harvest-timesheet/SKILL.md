@@ -143,7 +143,7 @@ Do NOT ask the user open-ended questions — present options and let them respon
 For each working day, build **two parallel lists** so meeting time-of-day is preserved all the way to Harvest:
 
 **(a) Meeting entries** — one per attended calendar event:
-- Carry the real `start_time` and `end_time` from the Outlook event (preserved as HH:MM 24-hour)
+- Carry the real `start_time` and `end_time` from the Outlook event (preserved as HH:MM 24-hour). The work-tools MCP returns Outlook events in the host's local timezone (`Pacific Time` for this user — see `OUTLOOK_TIMEZONE` in the work-tools index), and the Harvest account is also Pacific. So the HH:MM substring from the Outlook event can be passed **directly** to `harvest_create_time_entry` — no UTC conversion required.
 - Carry the mapped `project_id` / `task_id`
 - Notes = the actual meeting title (e.g., "Madagascar Meetup")
 - Hours = the meeting's true duration (may be fractional, e.g., 0.5 for a 30-minute standup)
