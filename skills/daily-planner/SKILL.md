@@ -865,8 +865,13 @@ adds conditional formatting to the Today tab, and removes the default Sheet1.
 Apps Script web app URL) and `DAILY_PLANNER_TOKEN` (shared secret matching `planner_token`
 in the Config tab). See [references/setup-guide.md](references/setup-guide.md) Part 4.
 
-**Credentials loading**: The `sheets_helper.py` module reads the `.env` file from the
-current working directory. This is why the skill must always run from the planner folder.
+**Credentials loading**: `sheets_helper.py` walks a priority-ordered candidate list to find
+the `.env` file: `$DAILY_PLANNER_ENV_FILE` (explicit override) → `./.env` (cwd) →
+`~/Documents/DailyPlanner/.env` (workspace default) → `~/.daily-planner.env` (home-dir
+fallback). The skill no longer has to run from the planner folder — bash invocations from
+Cowork session sandboxes or scheduled tasks will find the workspace `.env` via candidate 3.
+The chosen path is logged to stderr. Shell env vars always take precedence over file-loaded
+values.
 
 **If credentials are not found**: The skill should still work — skip persistence operations,
 present the plan in chat only, and remind the user to set up per `references/setup-guide.md`.
