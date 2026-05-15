@@ -66,17 +66,50 @@ class DailyPlannerSheets:
         self.token = token or os.environ.get("DAILY_PLANNER_TOKEN", "")
 
     @staticmethod
-    def _load_dotenv():
-        """Load KEY=VALUE pairs from .env file into os.environ.
+    def _candidate_env_paths() -> list[str]:
+        """Ordered list of .env paths to try.
 
-        Searches CWD for a .env file (the working folder for the task).
-        Only sets vars that are not already in the environment.
-        Supports bare values and single/double-quoted values.
-        Lines starting with # are ignored.
+        Priority (first hit wins):
+          1. Explicit override: $DAILY_PLANNER_ENV_FILE pointing at a file
+          2. CWD: ./.env  (preserves prior behavior for invocations from the workspace dir)
+          3. Workspace default: ~/Documents/DailyPlanner/.env
+          4. Home-dir fallback: ~/.daily-planner.env  (works from any cwd — scheduled tasks, sandboxes)
+
+        Mirrors the discovery pattern documented in AGENTS.md for the work-tools MCP server,
+        adapted for the Daily Planner workspace (the script lives in the work-tools repo but
+        the .env it consumes lives in the user's planner workspace, not the script's repo).
         """
-        env_path = os.path.join(os.getcwd(), ".env")
-        if not os.path.isfile(env_path):
+        home = os.path.expanduser("~")
+        candidates: list[str] = []
+        explicit = os.environ.get("DAILY_PLANNER_ENV_FILE", "").strip()
+        if explicit:
+            candidates.append(explicit)
+        candidates.extend([
+            os.path.join(os.getcwd(), ".env"),
+            os.path.join(home, "Documents", "DailyPlanner", ".env"),
+            os.path.join(home, ".daily-planner.env"),
+        ])
+        return candidates
+
+    @staticmethod
+    def _load_dotenv():
+        """Load KEY=VALUE pairs from a .env file into os.environ.
+
+        Walks `_candidate_env_paths()` in order, loads from the first one that exists,
+        and stops. Logs the chosen path to stderr for debuggability (one line, prefixed
+        so it can't be confused with the script's stdout JSON output).
+
+        Only sets vars that are not already in the environment (shell env wins).
+        Supports bare values and single/double-quoted values. Lines starting with # are ignored.
+        """
+        env_path: Optional[str] = None
+        for candidate in DailyPlannerSheets._candidate_env_paths():
+            if candidate and os.path.isfile(candidate):
+                env_path = candidate
+                break
+        if env_path is None:
             return
+        sys.stderr.write(f"[sheets_helper] loaded env from {env_path}\n")
         with open(env_path) as f:
             for line in f:
                 line = line.strip()

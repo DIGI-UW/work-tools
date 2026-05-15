@@ -199,8 +199,17 @@ The URL stays the same — no need to update your settings.
 **"Unauthorized" errors from the skill**: The password in your `.env` file doesn't match
 the `planner_token` value in the Config tab. Open both and make sure they're identical.
 
-**Credentials not found**: Make sure you started the Claude session **in your planner folder**
-(the folder containing the `.env` file). The skill looks in the current working directory.
+**Credentials not found**: `sheets_helper.py` looks for a `.env` file in this priority order
+(first hit wins):
+1. The path in the `DAILY_PLANNER_ENV_FILE` env var, if set (power-user override)
+2. `./.env` — the current working directory
+3. `~/Documents/DailyPlanner/.env` — the default workspace location
+4. `~/.daily-planner.env` — home-dir fallback (works from any cwd, including
+   scheduled tasks and Cowork session sandboxes)
+
+The script logs which path it loaded from to stderr (look for `[sheets_helper] loaded env from ...`).
+If none of these resolves, set `DAILY_PLANNER_URL` and `DAILY_PLANNER_TOKEN` directly in your
+shell — shell env always wins over file-loaded values.
 
 **Tabs weren't created**: Check the Execution log in Apps Script for errors. Re-run `doGet`
 and go through the authorization flow again.
