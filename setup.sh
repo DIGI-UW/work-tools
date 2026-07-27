@@ -1,5 +1,5 @@
 #!/bin/bash
-# Work Tools — One-time setup for macOS
+# Work Tools — One-time setup (macOS or Windows Git Bash)
 # Run: ./setup.sh
 set -e
 
@@ -31,10 +31,10 @@ else
   echo "  Python 3 not found — outlook_client.py fallback will be unavailable"
 fi
 
-# Install deps if needed
+# Install deps if needed (dev deps included — npx tsc needs the local typescript)
 if [ ! -d "node_modules" ]; then
   echo "Installing dependencies..."
-  npm install --production 2>&1 | tail -1
+  npm install 2>&1 | tail -1
 fi
 echo "  Dependencies installed"
 
@@ -123,7 +123,11 @@ fi
 echo ""
 echo "--- Claude Desktop Config ---"
 
-CONFIG_DIR="$HOME/Library/Application Support/Claude"
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) CONFIG_DIR="$APPDATA/Claude" ;;
+  Darwin)               CONFIG_DIR="$HOME/Library/Application Support/Claude" ;;
+  *)                    CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/Claude" ;;
+esac
 CONFIG_FILE="$CONFIG_DIR/claude_desktop_config.json"
 
 MCP_ENTRY=$(cat <<MCPEOF
