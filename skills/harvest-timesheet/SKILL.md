@@ -1,211 +1,143 @@
 ---
 name: harvest-timesheet
 description: >
-  Automate Casey's weekly Harvest timesheet for DIGI/I-TECH work. Use this skill whenever the
-  task is to fill, reconcile, or correct Harvest time entries for a work week — pulling meetings
-  from the Outlook calendar, mapping them to approved DIGI projects, allocating filler time, and
-  creating or updating entries via the Harvest API. Also use it to apply the Out-of-Office rule for
-  Washington State public holidays, or to answer "did my timesheet get filled this week?" Triggers:
-  "fill my timesheet", "harvest entries", "log my hours", "timesheet for this week", "mark a day OOO".
-  Designed to run unattended on a weekly schedule, but also works interactively.
+  Fill, reconcile, or correct a weekly Harvest timesheet from the Outlook calendar. Pulls the week's
+  meetings, maps them to the user's approved projects, allocates the remaining hours as filler, and
+  creates/updates entries via the Harvest MCP. Applies an Out-of-Office rule for public holidays and
+  answers "did my timesheet get filled this week?" Triggers: "fill my timesheet", "harvest entries",
+  "log my hours", "timesheet for this week", "mark a day OOO". Runs unattended on a weekly schedule
+  or interactively. All personal data (identity, project IDs, mappings, filler split) lives in
+  references/my-config.md — this playbook is generic.
 ---
 
 # Harvest Timesheet Automation
 
-Fills Casey's Harvest timesheet for the current work week (Mon–Fri) from the Outlook calendar,
-mapping meetings to approved DIGI projects and allocating the rest as filler. Only fills days that
-have **no existing entries**, so it is safe to re-run.
+Fills a Harvest timesheet for a target work week from the Outlook calendar, mapping meetings to the
+user's approved projects and allocating the rest as filler. Only fills days that have **no existing
+entries**, so it is safe to re-run.
 
-## Identity & environment
+## Step 0 — Load the user config (required)
 
-| Item | Value |
-|---|---|
-| Harvest Account ID | `978800` |
-| Harvest User ID | `2344962` |
-| Email | `caseyi@uw.edu` |
+Read **`references/my-config.md`** first. It holds everything personal/org-specific: identity,
+timezone, approved projects (ids + keywords), mapping rules, filler split, hours/day, and holiday
+jurisdiction. If `my-config.md` is missing, copy `references/my-config.example.md` to
+`references/my-config.md` and help the user fill it in (see "Onboarding a new user" below) — do not
+proceed with placeholder values.
 
-> **Account conventions** (from `get_account_settings`, confirmed 2026-06-20): approval is
-> required before timesheets are final, hour **rounding is OFF** (log exact 0.25h values),
-> timers want clock-in/out timestamps, and the Harvest week starts Sunday — but Casey's work week
-> is **Mon–Fri**, so always drive the range explicitly, don't rely on the account's week start.
+Throughout this playbook, values in `{{braces}}` come from that config.
 
-### Primary input method: the Harvest MCP connector
+## Primary input method: the Harvest MCP connector
 
 **Use the Harvest MCP for all reads and writes** — it handles auth, enforces entry ownership
-server-side, and needs no token in the repo or browser. Key tools:
-
-| Action | MCP tool |
-|---|---|
-| Check what's already logged | `list_time_entries` (`from`, `to`, optional `user_id`) |
-| Create an entry | `log_time` (`project_id`, `task_id`, `hours`, `spent_at`, `notes`) |
-| Correct an entry | `update_time_entry` (`id`, + fields to change) |
-| Remove an entry | `delete_time_entry` (`id`) |
-| Discover project / task ids | `list_projects`, `list_tasks` |
-| Account rules | `get_account_settings` |
-
-> **Fallback only:** if the MCP is unavailable, the legacy path is the **Chrome console**
-> (`javascript_tool`) after navigating to `https://digitc.harvestapp.com` — the network proxy
-> blocks direct `curl`/Python, so don't attempt those. Any token used in the fallback is supplied
-> at runtime, **never committed** (`openelis-work` is public). If you find a token hardcoded in a
-> task file, treat it as compromised and rotate it in Harvest (Settings → Developers).
-
-## Approved projects (bill ONLY to these)
-
-| Project | Project ID | Task ID | Calendar keywords |
-|---|---|---|---|
-| Madagascar LIS (FY26) | 46605259 | 23300925 | Madagascar, Mekom, eSIL/e-SIL, MedX, O3 Squad, OpenMRS, Comité de projet, OpenELIS Review, OpenELIS Community Call, **TAP/DRC → bill to Madagascar** |
-| Indonesia LIS (FY26) | 47227048 | 23300925 | Indonesia, APHL, SILNAS, Indo, OE cross-project coordination |
-| Papua New Guinea LIS Tranche 2 (FY26/FY27) | 48537882 | 23300925 | PNG, Papua, Johnson, Dev/tech team weekly check-in |
-| DIGI General Work | 18982046 | 23300925 | DIGI, DGH, OHIE, Zim VMMC, Workforce, TPM, Interoperability, OMRS Checkin, Team Meeting, Dev Weekly strategy review |
-| Ethiopia LIS AHRI (FY26) | 46004172 | 23300925 | Ethiopia, Orbit |
-| Out of Office | 18507028 | 19814923 | OOO, holiday, vacation, sick, **WA public holiday** |
-
-> **PNG project rollover (2026-07-10):** PNG Tranche 1 (`46605414`) was **archived 2026-06-18** —
-> Harvest rejects entries against it. Bill PNG to Tranche 2 (`48537882`). If any project id 404s or
-> reports "isn't active", re-discover via `list_projects` and match by name (see Improvements).
-
-### Critical mapping rules
-- **NEVER bill TAP/DRC.** Bill those hours to **Madagascar** instead.
-- **OpenELIS Community Call → Madagascar.** **OE cross-project coordination → Indonesia.**
-- **Skip (do not bill):** Open Digital Health Summit Planning Call, OHS Developers Calls, Global
-  Product Support Team, Yao Celebration Potluck, "RE: Fortnightly Catch Up", Aurum & DIGI follow-up,
-  any private "Busy" blocks. **Canceled events → skip entirely.**
-- **If an event doesn't clearly map to one of the 6 projects:** in an interactive session, ask
-  Casey; in an **unattended/scheduled** run, leave it out of the meeting mapping (it still gets
-  covered by filler) and **note it in the report** rather than guessing.
+server-side, and needs no token in the repo or browser. Key tools: `list_time_entries`
+(`from`, `to`, optional `user_id`), `log_time` (`project_id`, `task_id`, `hours`, `spent_at`,
+`notes`), `update_time_entry` (`id` + fields), `delete_time_entry` (`id`), `list_projects` /
+`list_tasks` (discover ids), `get_account_settings` (rounding, week start, approval rules). See
+`references/harvest-api.md` for the full tool reference and the Chrome-console fallback.
 
 ## Allocation rules
-1. **7.5 h** per regular workday; **8.0 h** for Out of Office / holidays.
-2. All hours in **0.25 h (15-minute)** increments.
+1. **{{hours_per_day}}** per regular workday (default 7.5h); **{{ooo_hours}}** for Out of Office /
+   holidays (default 8h).
+2. All hours in **0.25h (15-minute)** increments.
 3. Skip weekends.
-4. Default filler split: **80% Papua New Guinea / 20% Indonesia** (updated 2026-07-10; replaces the
-   30% Madagascar / 70% Indonesia split of 2026-05-29). Madagascar now gets **meeting hours only**,
-   no filler. In an interactive run, confirm with Casey before creating entries; in an unattended
-   run, use this default and note it.
+4. Filler split per `{{filler_split}}` in config. Any project marked "meeting hours only" gets no
+   filler. In an interactive run, confirm the split before creating entries; in an unattended run,
+   use the config default and note it.
 
-## Washington State public holidays → 8 h Out of Office
+## Public-holiday → Out of Office
 
-Any Washington State legal holiday (RCW 1.16.050) that falls on a Mon–Fri is logged as a **full
-8.0 h Out of Office** day (project `18507028`, task `19814923`, note = holiday name). Do **not** map
-calendar meetings on a holiday — the whole day is OOO even if stray invites exist. Observation:
-when a fixed-date holiday falls on a Saturday it is observed the preceding Friday; on a Sunday, the
-following Monday (standard WA practice for state workers).
-
-| Holiday | Date rule |
-|---|---|
-| New Year's Day | January 1 |
-| Martin Luther King Jr. Day | 3rd Monday in January |
-| Presidents' Day | 3rd Monday in February |
-| Memorial Day | last Monday in May |
-| **Juneteenth** | **June 19** |
-| Independence Day | July 4 |
-| Labor Day | 1st Monday in September |
-| Veterans Day | November 11 |
-| Thanksgiving Day | 4th Thursday in November |
-| Native American Heritage Day | Friday after Thanksgiving |
-| Christmas Day | December 25 |
-
-A ready-to-run holiday check (`isWaHoliday(date)`) lives in `references/wa-holidays.js`.
+Any legal holiday (for the jurisdiction named in config; default Washington State, RCW 1.16.050)
+that falls on a business day is logged as a full **{{ooo_hours}}** Out-of-Office day (the OOO
+project/task from config, note = holiday name). Do **not** map meetings on a holiday — the whole day
+is OOO even if stray invites exist. `references/wa-holidays.js` implements the WA set with
+observed-day shifting (fixed-date holiday on Saturday → observed the preceding Friday; on Sunday →
+the following Monday). Swap in a different jurisdiction's list if config says so.
 
 ## Workflow
 
 ### Step 1 — Date range & existing entries
-Compute Mon–Fri of the target week. Pull existing entries with `list_time_entries` (`from`/`to` =
-that Mon/Fri) and total `hours` per `spent_at`. Days that already have entries are **left alone**
-(unless explicitly correcting one — see Step 6).
+Compute the business days (Mon–Fri) of the target week. Pull existing entries with
+`list_time_entries` (`from`/`to`) and total `hours` per `spent_at`. Days that already have entries
+are **left alone** (unless explicitly correcting one — see Step 6).
 
 ### Step 2 — Classify each business day
-For each Mon–Fri with **no** existing entries:
-- **WA public holiday?** → 8.0 h Out of Office. Done; skip calendar mapping for that day.
-- Otherwise → regular 7.5 h day; continue to Step 3.
+For each business day with **no** existing entries:
+- **Public holiday?** → `{{ooo_hours}}` Out of Office. Done; skip calendar mapping for that day.
+- Otherwise → regular `{{hours_per_day}}` day; continue to Step 3.
 
 ### Step 3 — Read the Outlook calendar
 
-There is **no required calendar MCP** — this skill works with the browser out of the box. If an
-Outlook calendar **API tool happens to be available** in the session, prefer it; otherwise use the
-Chrome method. Pick whichever is present at runtime; do not fail or ask Casey to install anything.
+Source-agnostic and detected at runtime. If an Outlook calendar **API tool is available**, prefer
+it; otherwise use Chrome. Pick whichever is present; never fail or force an install.
 
-**Option A — the `work-tools` `outlook_list_events` MCP, only if it's already connected** (optional
-enhancement, verified 2026-07-30). Detect at runtime whether the `outlook_list_events` tool exists
-(e.g. via ToolSearch for "outlook calendar events"); if it does:
-
-- Call `outlook_list_events` with `start_date` / `end_date` = the target Mon–Fri range. It returns
-  one object per event with `subject`, `start` / `end`, `organizer`, `location`, and `allDay`; pass
-  `include_cancelled: true` only if you need canceled events (default omits them).
-- Times come back in the host's local timezone (Pacific via `OUTLOOK_TIMEZONE`), which matches the
-  Harvest account — use the `HH:MM` values as-is, **no UTC conversion**.
-- If a call fails on an expired token, call `outlook_refresh` once and retry; if that fails, fall
-  back to Option B.
-- Ignore any Google Calendar tool — it only holds Casey's personal events, not the work calendar.
-
-This path needs no live browser during the run, so it's the nicer option for **unattended/scheduled
-runs** — but only when the tool is already there. **Never treat it as a prerequisite**; it's a local
-MCP Casey opts into. Setup steps (clone/build/register + one-time SSO token capture) live in
-`references/work-tools-setup.md`. Note the tool only appears in sessions started *after* the server
-is registered.
+**Option A — the `work-tools` `outlook_list_events` MCP, if connected** (optional). Detect at
+runtime whether `outlook_list_events` exists (e.g. ToolSearch "outlook calendar events"); if so:
+call it with `start_date` / `end_date` = the target range. It returns one object per event with
+`subject`, `start` / `end`, `organizer`, `location`, `allDay`; pass `include_cancelled: true` only
+if needed. Times come back in the host timezone (`{{timezone}}`), matching the Harvest account — use
+`HH:MM` as-is, no UTC conversion. On an expired-token error call `outlook_refresh` once, then fall
+back to Option B. Ignore any Google Calendar tool (personal events only). Setup:
+`references/work-tools-setup.md`. The tool only appears in sessions started after the server is
+registered.
 
 **Option B — Chrome scraping (default, always works).** Navigate to
-`https://outlook.office.com/calendar/view/week`, page to the target week, and read each day with
+`https://outlook.office.com/calendar/view/week`, page to the target week, read each day with
 `get_page_text`. If plain text lacks per-event times, pull event `aria-label`s via `javascript_tool`
 — each carries "name, start to end, day, date, organizer, busy/free/tentative, canceled". Sanitize
 labels (strip embedded URLs/query strings) and capture only name + time + weekday + date to avoid the
 cookie/query-string content blocker.
 
-Either option yields the same per-event fields (name, start/end, organizer, canceled) that Step 4 consumes.
+Either option yields the same per-event fields (name, start/end, organizer, canceled) for Step 4.
 
 ### Step 4 — Map events to projects
-Apply the keyword table and critical rules. Skip canceled and skip-list meetings. TAP/DRC → Madagascar.
+Apply the approved-projects keyword table and the mapping rules from config. Skip canceled events and
+anything on the config skip-list. Apply special routing rules from config (e.g. re-routing one
+project's hours to another). If an event doesn't clearly map to an approved project: in an
+interactive session, ask the user; in an unattended run, leave it out of meeting mapping (filler
+still covers the day) and **note it in the report** rather than guessing.
 
 ### Step 5 — Allocate
-Per non-holiday day: meeting hours per project + filler (7.5 h − meeting hours) split by the
-confirmed percentages. Round to 0.25 h and adjust so the day totals **exactly 7.5 h**.
+Per non-holiday day: meeting hours per project + filler (`{{hours_per_day}}` − meeting hours) split
+by the config percentages. Round to 0.25h and adjust so the day totals exactly `{{hours_per_day}}`.
 
 ### Step 6 — Create / correct entries
 Create each entry with **`log_time`** (`project_id`, `task_id`, `hours`, `spent_at`, `notes` —
-include meeting names). Conceptually entries run sequentially from 8:00 am (regular day = 7.5 h,
-OOO = 8 h); `log_time` is hours-based, so clock times aren't required, but keep one entry per
-project per day.
-
-**Correcting a day that already has entries** (e.g. converting a workday to a holiday OOO): use
-**`update_time_entry`** (`id` from `list_time_entries`, plus the fields to change — `project_id`,
-`task_id`, `hours`, `notes`). Prefer updating over `delete_time_entry` + re-create. The MCP enforces
-ownership, so you can only change Casey's own entries.
+include meeting names). Keep one entry per project per day. To change a day that already has entries
+(e.g. converting a workday to OOO), use **`update_time_entry`** (`id` from `list_time_entries` +
+fields to change). Prefer updating over delete + re-create. The MCP enforces ownership.
 
 ### Step 7 — Verify & report
-Re-pull the range with `list_time_entries`. Confirm each day totals exactly **7.5 h** (or **8 h**
-OOO), all increments are 0.25 h, and **no TAP** entries exist. Report a per-day summary. Note that
-new entries are `unsubmitted` — submitting/approving the timesheet is a separate manual step Casey
-controls (see Improvements).
+Re-pull the range with `list_time_entries`. Confirm each day totals exactly `{{hours_per_day}}` (or
+`{{ooo_hours}}` OOO), all increments are 0.25h, and no skip-listed/never-bill project appears. Report
+a per-day summary and list any skipped/ambiguous meetings. New entries are `unsubmitted` — submitting
+is a separate manual step the user controls.
 
 ## Unattended-run behavior
-When run on a schedule (no human present): execute autonomously, use the documented filler default,
-apply the WA holiday rule, **don't guess** ambiguous meetings (report them instead), and only take
-write actions (`POST`/`PATCH`) that this skill defines. When in doubt, produce a report.
+On a schedule (no human present): execute autonomously, use the config filler default, apply the
+holiday rule, **don't guess** ambiguous meetings (report them), and only take the write actions this
+skill defines. When in doubt, produce a report.
 
 ## Success criteria
-- All business days have entries; daily totals exactly 7.5 h (8 h OOO); all 0.25 h increments.
-- WA public holidays logged as 8 h OOO.
-- No TAP entries, ever. No entries against archived projects (PNG Tranche 1 `46605414`).
+- All business days have entries; daily totals exactly `{{hours_per_day}}` (`{{ooo_hours}}` OOO); all
+  0.25h increments.
+- Public holidays logged as `{{ooo_hours}}` OOO.
+- Only approved projects billed; never-bill projects never appear; no archived-project entries.
 - Filler split confirmed (interactive) or defaulted-and-noted (unattended).
 - No credentials committed to the repo.
 
-## Improvements / backlog
-- **Discover IDs at runtime instead of hardcoding.** The project/task ids here are a convenience
-  cache; confirm against `list_projects` / `list_tasks` so the skill survives an FY rollover
-  (FY26 → FY27 projects). Match by name when an id 404s — this bit us 2026-07-10 when PNG Tranche 1
-  was archived mid-quarter.
-- **Submission is intentionally manual.** New entries land `unsubmitted`; `submit_timesheet` exists
-  but the skill does not auto-submit, so Casey reviews before approval. Revisit only if Casey asks.
-- **Project-list drift check.** Once a quarter, diff `list_projects` against the approved-projects
-  table and flag added/renamed/archived projects.
-- **Better filler signal.** The 80/20 PNG/Indonesia default reflects current priorities
-  (2026-07-10); revisit when PNG Tranche 2 winds down (ends 2026-12-31) or at quarter start.
-- **Holiday calendar coverage.** `wa-holidays.js` encodes WA state holidays only. If I-TECH/UW
-  observes additional closure days (e.g. a winter break day), add them as a separate list.
+## Onboarding a new user
+1. `cp references/my-config.example.md references/my-config.md` (or a named `my-config.<you>.md`).
+2. Fill in identity: run `get_account_settings` and `list_projects` / `list_tasks` via the Harvest
+   MCP to discover the account id, your user id, project ids, and task ids.
+3. List approved projects with calendar keywords; set the filler split; list skip/never-bill
+   meetings and any special routing rules; set hours/day and holiday jurisdiction.
+4. Claude can do all of this interactively — ask it to "set up my harvest-timesheet config".
 
 ## Reference files
 | File | When to read |
 |---|---|
-| `references/wa-holidays.js` | Computing whether a date is a WA State legal holiday (with observed-day shifting) |
-| `references/harvest-api.md` | MCP tool reference + legacy REST shapes for the Chrome fallback |
+| `references/my-config.md` | **Always first** — identity, projects, mappings, filler split, hours/day (gitignored; copy from the example) |
+| `references/my-config.example.md` | Template to create `my-config.md` for a new user |
+| `references/wa-holidays.js` | Compute whether a date is a WA State legal holiday (observed-day shifting) |
+| `references/harvest-api.md` | Harvest MCP tool reference + legacy REST shapes for the Chrome fallback |
 | `references/work-tools-setup.md` | Optional: install the `work-tools` MCP for the `outlook_list_events` calendar API (Step 3 Option A) |

@@ -4,7 +4,7 @@
 
 | Tool | Purpose / key params |
 |---|---|
-| `list_time_entries` | `from`, `to` (YYYY-MM-DD, inclusive), optional `user_id`, `project_id`. Paginate via `next_cursor` -> `cursor`. Omit `user_id` for self (2344962). |
+| `list_time_entries` | `from`, `to` (YYYY-MM-DD, inclusive), optional `user_id`, `project_id`. Paginate via `next_cursor` -> `cursor`. Omit `user_id` to default to self (your Harvest User ID is in `my-config.md`). |
 | `log_time` | `project_id`, `task_id`, `hours` (decimal) OR `started_time`+`ended_time`, `spent_at`, `notes`. |
 | `update_time_entry` | `id` + any of `hours`, `notes`, `project_id`, `task_id`, `spent_at`. Ownership enforced server-side. |
 | `delete_time_entry` | `id`. Prefer `update_time_entry`; avoid deletes. |
@@ -20,10 +20,11 @@ Known failure modes:
 
 ## Fallback only: Chrome console REST (when the MCP is down)
 
-Navigate Chrome to `https://digitc.harvestapp.com`, then use `javascript_tool` with `fetch` against
-`https://api.harvestapp.com/v2/...` and headers `Authorization: Bearer <runtime token>`,
-`Harvest-Account-Id: 978800`. Never commit a token; rotate immediately if one appears in a file.
+Navigate Chrome to your Harvest subdomain (`https://<subdomain>.harvestapp.com`), then use
+`javascript_tool` with `fetch` against `https://api.harvestapp.com/v2/...` and headers
+`Authorization: Bearer <runtime token>`, `Harvest-Account-Id: <account id from my-config.md>`.
+Never commit a token; rotate immediately if one appears in a file.
 
-- `GET /v2/time_entries?from=YYYY-MM-DD&to=YYYY-MM-DD&user_id=2344962`
+- `GET /v2/time_entries?from=YYYY-MM-DD&to=YYYY-MM-DD&user_id=<your user id>`
 - `POST /v2/time_entries` body: `{project_id, task_id, spent_at, hours, notes}`
 - `PATCH /v2/time_entries/{id}` body: fields to change
