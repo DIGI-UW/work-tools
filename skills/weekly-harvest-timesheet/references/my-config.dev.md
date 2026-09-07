@@ -44,18 +44,40 @@
 
 ## FY26 Forecast (hours/month)
 
-forecast_last_synced: 2026-03-04
+forecast_last_synced: 2026-09-07
+forecast_source: "FY26 Team Time Forecast" — Google Sheets id 1hybHfyf3F_iheK7JVlPN1x_ZdaZD_9-VtWjo2uSxPmo
+  (tab whose header reads "Project (Harvest Name)"; linked by Sonora Stampfly in the
+  2026-08-10 "Monthly Forecasting Meeting" invite. Sheet last modified 2026-09-04.)
 
-| Project                      | Oct | Nov | Dec | Jan | Feb | Mar | Apr | May |
-|------------------------------|-----|-----|-----|-----|-----|-----|-----|-----|
-| Ethiopia LIS AHRI (FY26)     |   0 |   0 |  14 |  34 |   1 |   0 |   0 |   0 |
-| Haiti HIS (FY26)             |   0 |   0 |  11 |   9 |  20 |  15 |  20 |   8 |
-| Madagascar LIS (FY26)        |   0 |   0 |   0 |  32 |  62 |  61 |  62 |  62 |
-| Papua New Guinea LIS (FY26)  |   0 |   0 |   0 |   0 |   0 |  56 |   0 |   0 |
-| WHO SMART Training (FY26)    |   0 |   0 |  17 |17.5 |   9 |   2 |   0 |   0 |
-| GOLD STAR OE AI Lab Mgmt     |   0 |   0 |   0 |   0 |  60 |  60 |  60 |  60 |
-| DIGI General Work            | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
-| **Monthly total (forecasted)**| 95 | 135 | 129 | 194 | 142 | 130 |  60 |  60 |
+Piotr's rows, FY26 = Oct 2025 – Sep 2026. Blank = nothing forecast that month.
+
+| Project (Harvest Name)            | Oct | Nov | Dec | Jan | Feb | Mar | Apr | May | Jun | Jul | Aug | Sep | Total |
+|-----------------------------------|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-------|
+| Madagascar LIS (FY26)             |     |  32 |   0 |  61 |  62 |   1 |  74 |  49 |     |     |     |     |   279 |
+| Haiti HIS (FY26)                  |  11 |   9 |  11 |  15 |  10 |   1 |     |     |     |     |     |     |    57 |
+| Haiti HIS (FY26) – Comp 2 + 5     |     |     |     |     |     |     |   7 |   1 |   2 |   8 |   8 |   8 |    34 |
+| Ethiopia LIS (FY26)               |  14 |  34 |   1 |     |     |     |     |     |     |     |     |     |    49 |
+| Indonesia LIS – Tranche 2 (FY26)  |     |     |     |     |     |     |   9 |  30 |   4 |     |     |     |    43 |
+| ACT Registry (Uganda RHD)         |     |     |     |     |     |     |   4 |  13 |   1 |   4 |     |     |    22 |
+| Jamaica TSIS-DHIS2 (FY27)         |     |     |     |     |     |     |     |     |     |   6 |   0 |   6 |    12 |
+
+**⚠️ The forecast is nearly empty from June 2026 onward.** For **August 2026 the only
+forecast row for Piotr is Haiti HIS Comp 2 + 5 = 8h** (Jamaica is 0). Madagascar, Indonesia
+and ACT Registry all stop after June; Gold Star OE AI Lab and OpenMRS NSF Cybersecurity & AI
+have **no rows at all** on this tab despite being where the actual dev work went. So for
+Jun–Sep 2026 the forecast cannot be used to allocate fill hours — derive them from actual
+signals (GitHub PRs, Jira, calendar) and confirm with the user.
+
+**Two tabs disagree.** An older tab in the same workbook uses pre-Harvest project names
+("Haiti HIS Work (FY26)", "Gold Star - WHO Test", "CDI LAB (FY26)") and shows a different
+Madagascar profile plus Haiti 6h/mo for Jul–Sep. The "Project (Harvest Name)" tab above is
+the newer one and is what maps cleanly onto Harvest project names — prefer it. The numbers
+in this file before 2026-09-07 came from the older tab.
+
+**Also on the newer tab but missing from the project/task table above:** ACT Registry
+(Uganda RHD) → Harvest "ACT Registry Technical Assistance" (48219327), and Haiti HIS
+Comp 2 + 5 → Harvest "Haiti HIS Comp 5 (FY26)" (48961546). Confirm task IDs via
+`harvest_list_tasks` before logging to either.
 
 **Important:** DIGI General is never forecasted — it absorbs internal meetings, admin, and coordination. The forecasted total won't reach 160h; the gap is implicitly DIGI General.
 
