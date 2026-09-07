@@ -22,25 +22,64 @@
 
 | Harvest Project              | Project ID | Task ID  | Task Name                         | Billable |
 |------------------------------|-----------|----------|-----------------------------------|----------|
-| Madagascar LIS (FY26)        | 46605259  | 23300925 | DIGI External Billable Rate FY25  | Yes      |
-| Haiti HIS (FY26)             | 46316326  | 23300925 | DIGI External Billable Rate FY25  | Yes      |
-| Ethiopia LIS AHRI (FY26)     | 46004172  | 23300925 | DIGI External Billable Rate FY25  | Yes      |
-| WHO SMART Training (FY26)    | 45673959  | 23300925 | DIGI External Billable Rate FY25  | Yes      |
-| GOLD STAR OE AI Lab Mgmt     | 43777862  | 23300925 | DIGI External Billable Rate FY25  | Yes      |
-| Papua New Guinea LIS Tranche 2 (FY26/FY27)| 48537882 | 26896787 | DIGI Internal Billable Rate FY27 | Yes |
-| Indonesia LIS Tranche 2 (FY26)| 48102259 | 23300925 | DIGI External Billable Rate FY25  | Yes      |
+| PNG LIS Tranche 2 (FY26/FY27)| 48537882  | 23300925 | DIGI External Billable Rate FY25  | Yes      |
 | OpenMRS NSF Cybersecurity & AI (FY26) | 48491293 | 23300925 | DIGI External Billable Rate FY25 | Yes  |
-| OpenELIS Community           | 44644581  | 23300925 | DIGI External Billable Rate FY25  | No (tasks non-billable) |
+| Haiti HIS Comp 5 (FY26)      | 48961546  | 23300925 | DIGI External Billable Rate FY25  | Yes      |
+| ACT Registry Technical Assistance | 48219327 | 23287211 | DIGI Internal Billable Rate FY25 | Yes   |
+| Indonesia LIS Tranche 2 (FY26)| 48102259 | 23300925 | DIGI External Billable Rate FY25  | Yes      |
+| Madagascar LIS (FY26)        | 46605259  | 23300925 | DIGI External Billable Rate FY25  | Yes      |
+| Ethiopia LIS AHRI (FY26)     | 46004172  | 23300925 | DIGI External Billable Rate FY25  | Yes      |
+| Haiti HIS (FY26)             | 46316326  | 23300925 | DIGI External Billable Rate FY25  | Yes      |
+| WHO SMART Guidelines FY24-FY25| 38649814 | 19814923 | Non-Billable Time                 | No       |
+| GOLD STAR OE AI Lab Mgmt     | 43777862  | 23300925 | DIGI External Billable Rate FY25  | Yes      |
 | DIGI General Work            | 18982046  | 19814923 | Non-Billable Time                 | No       |
 | Out of Office                | 18507028  | 19814923 | Non-Billable Time                 | No       |
 
-**⚠️ PNG:** the OLD "Papua New Guinea LIS (FY26)" project **46605414 is dead** — no tasks assigned, returns HTTP 422. Use **PNG LIS Tranche 2 (48537882)** with task **26896787** ("DIGI Internal Billable Rate FY27" — NOT the usual 23300925). Piotr was assigned 2026-06-18. Always verify a project's tasks via `harvest_list_tasks` before logging if a 422 appears.
+### OpenELIS Community (44644581) — where OpenELIS *dev* work goes
 
-**OpenELIS Community (44644581):** client OpenELIS, all tasks non-billable. Per Piotr (May), OE Community Call / OE coordination / GSoC go to **DIGI General**, not here — confirm before routing anything to this project.
+Client OpenELIS. **All tasks non-billable.** Country sub-tasks attribute upstream
+OpenELIS platform work to whichever country drove it:
 
-**Note:** Gold Star uses "DIGI External Billable Rate FY25" (task 23300925), NOT "Non-Billable Time". This was confirmed from actual Feb 2026 entry creation.
+| Task            | Task ID  |
+|-----------------|----------|
+| OE PNG          | 27217795 |
+| OE IDN          | 27217796 |
+| OE MDG          | 27217794 |
+| OE ETH          | 27217865 |
+| OE CIV          | 27217797 |
+| GSOC            | 27217798 |
+| Non-Billable Time | 19814923 |
 
-**Note (June 2026):** Gold Star OE AI Lab is for **OpenELIS** AI work only. The **OpenMRS AI project (chartsearchai repos)** bills to **OpenMRS Cybersecurity (FY26)**, project 48491293, client NSF — despite the "Cybersecurity" name, this is the OpenMRS AI billing target (confirmed by Piotr, June 12 2026). GitHub signal: `openmrs/*chartsearchai*` and `pmanko/clinical-ai-validation-harness` repos → this project.
+**⚠️ Corrected 2026-09-07 — the following were wrong and caused a bad first draft:**
+
+1. **PNG task ID.** This file said use **26896787** ("DIGI Internal Billable Rate FY27").
+   Every actual PNG entry in June and July 2026 used **23300925** ("DIGI External
+   Billable Rate FY25"). Both tasks exist on the project, so the wrong one does **not**
+   422 — it silently bills the wrong rate. Use 23300925 unless told otherwise.
+   (The OLD project "Papua New Guinea LIS (FY26)" **46605414 is dead** — no tasks, 422s.
+   It is also gone from `harvest_list_projects`.)
+2. **OpenELIS Community routing was backwards.** This file said "OE Community Call /
+   OE coordination / GSoC go to DIGI General, **not here**." In practice OpenELIS
+   Community is the single largest bucket via the country sub-tasks above.
+   Keep the *OpenELIS Community Call meeting* on DIGI General, but route OpenELIS
+   **dev** work to the OE country tasks.
+3. **Madagascar and Ethiopia dev work → OE MDG / OE ETH, not the country projects.**
+   Madagascar LIS (46605259) and Ethiopia LIS AHRI (46004172) had **zero hours** in
+   June and July 2026. The Mekom weekly, the Mozzy 1:1 and the WHO Ethiopia FHIR
+   drop-in clinic were billed to OE MDG / OE ETH.
+4. **Gold Star OE AI Lab is AI work, not OpenELIS dev** (per Piotr, 2026-09-07) — it
+   happens to touch OpenELIS. It had **zero hours** in June and July; AI work is billed
+   to OpenMRS NSF (48491293) at a steady 7-9h/week. Piotr notes much of the AI work is
+   on his own time (e.g. the 62-commit weekend of Aug 22-24), so weight it **down**
+   relative to OpenELIS dev work when filling hours.
+
+**WHO SMART:** actuals use **WHO SMART Guidelines FY24-FY25 (38649814)** with
+Non-Billable Time, not "WHO SMART Training (45673959)". 12h landed there in the week
+of 2026-07-13.
+
+**Always verify with `harvest_list_tasks` before logging to a project you have not used
+recently** — task IDs and billability differ per project, and a wrong-but-valid task
+fails silently rather than erroring.
 
 ## FY26 Forecast (hours/month)
 
@@ -90,12 +129,19 @@ Apply these rules automatically when categorizing calendar events:
 | Madagascar project review    | Madagascar LIS  |                           |
 | OpenELIS Dev meeting         | Madagascar LIS  |                           |
 | Madagascar Meetup            | Madagascar LIS  |                           |
-| e-SIL: DIGI <> Mekom weekly | Madagascar LIS  | Mekom = Madagascar partner|
+| e-SIL: DIGI <> Mekom weekly | OE MDG          | OpenELIS Community / 27217794 (per actuals) |
 | Analyzers                    | Split Mad/GS    | ~50/50 by forecast ratio  |
 | CHARESS <> DIGI              | Haiti HIS       | CHARESS = Haiti partner   |
 | Roaming care                 | Haiti HIS       |                           |
 | WHO SMART CD Meeting         | WHO SMART       |                           |
 | Ethiopia Regroup             | Ethiopia LIS    |                           |
+| Drop-in Clinic Ethiopia FHIR | OE ETH          | WHO-organised, 01:00 PST; OpenELIS Community / 27217865 |
+| PNG OpenELIS Phase 2 Kick Off| PNG Tranche 2   | 48537882 / 23300925       |
+| ACT Tech Approach / ACT DIGI + Timor Leste | ACT Registry TA | 48219327 / 23287211 |
+| WHO SMART IG in Mongolia     | WHO SMART FY24-25 | 38649814 / 19814923     |
+| Monthly Forecasting Meeting  | DIGI General    | Sonora; forecast sheet link is in this invite |
+| IOM pre-contract review      | DIGI General    | BD / pre-contract         |
+| DevOps: Monthly Audit        | DIGI General    | Nested inside Dev/tech weekly — do not double-log |
 | Ethiopia travel planning     | DIGI General    | Garrett/WHO travel logistics — separate WHO project, not Ethiopia LIS; bill to DIGI General until that project exists |
 | DIGI Team Meeting            | DIGI General    |                           |
 | Dev/tech team weekly         | DIGI General    | 2h meeting                |
@@ -107,7 +153,7 @@ Apply these rules automatically when categorizing calendar events:
 | Dev Retreat                  | DIGI General    | 4h blocks                 |
 | SILNAS DEV call              | Indonesia LIS   | SILNAS = Indonesia (UNDP) |
 | ACTG + DIGI touchbase        | DIGI General    |                           |
-| Mozzy & Piotr                | Madagascar LIS  | Moses = Mad release partner |
+| Mozzy & Piotr                | OE MDG          | OpenELIS Community / 27217794 |
 | Agentic Health Surveillance  | DIGI General    | Seminar                   |
 | OpenELIS Community Call      | DIGI General    | Also "OE cross-project coordination" |
 | GSoC Weekly Check-in         | DIGI General    |                           |
