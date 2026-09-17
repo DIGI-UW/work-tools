@@ -16,7 +16,7 @@ description: >
 This skill supports two tool access modes. Use whichever fits your environment:
 
 **Mode A: MCP Server (default)** — Requires the `work-tools` MCP server to be built and registered.
-- Fastest, most capable (supports Outlook browser auth, Harvest CRUD, all 22 tools)
+- Fastest, most capable (supports Outlook browser auth, Harvest CRUD, all 26 tools)
 - Setup: `git clone` → `npm install && npm run build` → `claude mcp add`
 - See [references/work-tools-index.md](references/work-tools-index.md) for the full tool catalog
 
