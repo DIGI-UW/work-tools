@@ -124,8 +124,8 @@ Then add it to the `modules` array in `src/index.ts`.
 
 **Shared** (1): `warmup`
 
-**Outlook tools** (7):
-`outlook_status`, `outlook_refresh`, `outlook_list_emails`, `outlook_read_email`, `outlook_search_emails`, `outlook_list_events`, `outlook_search_events`
+**Outlook tools** (9):
+`outlook_status`, `outlook_refresh`, `outlook_list_emails`, `outlook_read_email`, `outlook_search_emails`, `outlook_list_events`, `outlook_search_events`, `outlook_create_draft`, `outlook_create_reply_draft`
 
 **Harvest tools** (9):
 `harvest_status`, `harvest_refresh`, `harvest_list_projects`, `harvest_list_tasks`, `harvest_list_time_entries`, `harvest_create_time_entry`, `harvest_update_time_entry`, `harvest_delete_time_entry`, `harvest_weekly_summary`

@@ -159,6 +159,10 @@ interface Event {
   Start: { DateTime: string; TimeZone: string }; End: { DateTime: string; TimeZone: string };
   Location?: { DisplayName: string }; Organizer?: { EmailAddress: { Name: string; Address: string } };
 }
+interface CreatedDraft {
+  id: string;
+  webLink?: string;
+}
 
 // ── API functions ──────────────────────────────────────────
 
@@ -208,6 +212,89 @@ async function listEvents(start?: string, end?: string): Promise<Event[]> {
     $top: "200", $select: "Id,Subject,Start,End,Location,Organizer,IsAllDay,IsCancelled", $orderby: "Start/DateTime",
   });
   return data.value;
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/** POST/PATCH helper — apiFetch is GET-only, so write calls need their own method + Content-Type. */
+async function apiWrite<T>(
+  path: string,
+  method: "POST" | "PATCH",
+  body: unknown,
+): Promise<T> {
+  const token = await getToken();
+  const doFetch = (t: string) => fetch(`${API_BASE}${path}`, {
+    method,
+    headers: { ...baseHeaders(t), "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  let res = await doFetch(token);
+  if (res.status === 401) {
+    cachedToken = null;
+    invalidateDisk();
+    try { await capture(undefined, true); } catch {
+      throw new Error("Outlook token expired and auto-refresh failed. Run outlook_refresh.");
+    }
+    res = await doFetch(cachedToken!);
+  }
+  if (!res.ok) throw new Error(`Outlook API ${res.status}: ${await res.text()}`);
+  return res.json() as Promise<T>;
+}
+
+/** Creates a brand-new draft in the Drafts folder. Never sends. */
+async function createDraft(
+  to: string[],
+  subject: string,
+  body: string,
+  bodyType: "HTML" | "Text",
+  cc: string[],
+): Promise<CreatedDraft> {
+  const payload = {
+    Subject: subject,
+    Body: { ContentType: bodyType, Content: body },
+    ToRecipients: to.map((addr) => ({ EmailAddress: { Address: addr } })),
+    CcRecipients: cc.map((addr) => ({ EmailAddress: { Address: addr } })),
+  };
+  const data = await apiWrite<EmailFull & { WebLink?: string }>("/messages", "POST", payload);
+  return { id: data.Id, webLink: data.WebLink };
+}
+
+/**
+ * Creates a draft reply (or reply-all) via Outlook's createreply/createreplyall action, which
+ * pre-populates recipients, subject ("RE: ..."), and the quoted thread. We then PATCH the body
+ * to prepend the caller's text ahead of that quote — the action itself accepts no comment param.
+ * Never sends.
+ */
+async function createReplyDraft(
+  id: string,
+  comment: string,
+  replyAll: boolean,
+): Promise<CreatedDraft> {
+  const action = replyAll ? "createreplyall" : "createreply";
+  const draft = await apiWrite<EmailFull & { WebLink?: string }>(
+    `/messages/${encodeURIComponent(id)}/${action}`,
+    "POST",
+    {},
+  );
+
+  const bodyType = draft.Body?.ContentType === "Text" ? "Text" : "HTML";
+  const existing = draft.Body?.Content ?? "";
+  const prefix = bodyType === "HTML"
+    ? `<p>${escapeHtml(comment).replace(/\n/g, "<br>")}</p>`
+    : `${comment}\n\n`;
+
+  const patched = await apiWrite<EmailFull & { WebLink?: string }>(
+    `/messages/${encodeURIComponent(draft.Id)}`,
+    "PATCH",
+    { Body: { ContentType: bodyType, Content: prefix + existing } },
+  );
+  return { id: draft.Id, webLink: patched.WebLink ?? draft.WebLink };
 }
 
 async function searchEvents(query: string): Promise<Event[]> {
@@ -319,6 +406,32 @@ export const outlook: ToolModule = {
         id: e.Id, subject: e.Subject, start: e.Start.DateTime, end: e.End.DateTime,
         location: e.Location?.DisplayName || null, organizer: e.Organizer?.EmailAddress?.Address,
       })), null, 2) }] };
+    });
+
+    server.tool("outlook_create_draft", "Create a new email draft in Outlook. Saves to Drafts — never sends.", {
+      to: z.array(z.string()).min(1).describe("Recipient email addresses"),
+      subject: z.string().describe("Email subject"),
+      body: z.string().describe("Email body content"),
+      cc: z.array(z.string()).optional().describe("CC email addresses"),
+      body_type: z.enum(["HTML", "Text"]).optional().describe("Body content type (default: HTML)"),
+    }, async ({ to, subject, body, cc, body_type }) => {
+      const draft = await createDraft(to, subject, body, body_type ?? "HTML", cc ?? []);
+      return { content: [{ type: "text", text: JSON.stringify({
+        id: draft.id, web_link: draft.webLink,
+        note: "Draft saved to Outlook Drafts folder. Not sent — review and send manually.",
+      }, null, 2) }] };
+    });
+
+    server.tool("outlook_create_reply_draft", "Create a draft reply to an existing email, with the original thread quoted. Saves to Drafts — never sends.", {
+      id: z.string().describe("ID of the email to reply to"),
+      comment: z.string().describe("Reply text, inserted above the quoted thread"),
+      reply_all: z.boolean().optional().describe("Reply to all recipients instead of just the sender (default: false)"),
+    }, async ({ id, comment, reply_all }) => {
+      const draft = await createReplyDraft(id, comment, reply_all ?? false);
+      return { content: [{ type: "text", text: JSON.stringify({
+        id: draft.id, web_link: draft.webLink,
+        note: "Reply draft saved to Outlook Drafts folder. Not sent — review and send manually.",
+      }, null, 2) }] };
     });
   },
 };

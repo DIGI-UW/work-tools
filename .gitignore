@@ -11,6 +11,7 @@ dist/
 
 # Skills — runtime config (built from named configs; never committed directly)
 skills/*/references/my-config.md
+skills/*/references/work-tools-index.md
 skills/built-archive/templates/
 skills/built-archive/*/
 
