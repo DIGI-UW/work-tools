@@ -149,8 +149,9 @@ interface Email {
   Id: string; Subject: string; ReceivedDateTime: string; BodyPreview: string; IsRead: boolean;
   From: { EmailAddress: { Name: string; Address: string } };
 }
+interface MessageBody { ContentType: string; Content: string }
 interface EmailFull extends Email {
-  Body: { ContentType: string; Content: string };
+  Body: MessageBody;
   ToRecipients: Array<{ EmailAddress: { Name: string; Address: string } }>;
   CcRecipients: Array<{ EmailAddress: { Name: string; Address: string } }>;
 }
@@ -162,6 +163,13 @@ interface Event {
 interface CreatedDraft {
   id: string;
   webLink?: string;
+}
+/** The slice of a message the draft write tools read before touching it. */
+interface DraftState {
+  Id: string; Subject: string; IsDraft: boolean; WebLink?: string; Body?: MessageBody;
+}
+interface DraftChanges {
+  subject?: string; body?: string; bodyType?: "HTML" | "Text"; to?: string[]; cc?: string[]; prependComment?: string;
 }
 
 // ── API functions ──────────────────────────────────────────
@@ -221,17 +229,41 @@ function escapeHtml(text: string): string {
     .replace(/>/g, "&gt;");
 }
 
-/** POST/PATCH helper — apiFetch is GET-only, so write calls need their own method + Content-Type. */
+function toRecipients(addresses: string[]) {
+  return addresses.map((addr) => ({ EmailAddress: { Address: addr } }));
+}
+
+/**
+ * Inserts `comment` above an existing body, keeping its content type. HTML bodies get an escaped
+ * paragraph with newlines rendered as <br>; Text bodies get a blank-line separator. Shared by the
+ * reply-draft and update-draft paths so both produce identical markup.
+ */
+function prependToBody(existing: MessageBody | undefined, comment: string): MessageBody {
+  const bodyType = existing?.ContentType === "Text" ? "Text" : "HTML";
+  const current = existing?.Content ?? "";
+  const prefix = bodyType === "HTML"
+    ? `<p>${escapeHtml(comment).replace(/\n/g, "<br>")}</p>`
+    : `${comment}\n\n`;
+  return { ContentType: bodyType, Content: prefix + current };
+}
+
+/**
+ * POST/PATCH/DELETE helper. apiFetch is GET-only, so write calls need their own method,
+ * Content-Type, and response handling: DELETE answers 204 No Content, which res.json() would
+ * reject, so an empty response resolves to undefined instead of being parsed.
+ */
 async function apiWrite<T>(
   path: string,
-  method: "POST" | "PATCH",
-  body: unknown,
+  method: "POST" | "PATCH" | "DELETE",
+  body?: unknown,
 ): Promise<T> {
   const token = await getToken();
   const doFetch = (t: string) => fetch(`${API_BASE}${path}`, {
     method,
-    headers: { ...baseHeaders(t), "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    headers: body === undefined
+      ? baseHeaders(t)
+      : { ...baseHeaders(t), "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
 
   let res = await doFetch(token);
@@ -244,7 +276,9 @@ async function apiWrite<T>(
     res = await doFetch(cachedToken!);
   }
   if (!res.ok) throw new Error(`Outlook API ${res.status}: ${await res.text()}`);
-  return res.json() as Promise<T>;
+  if (res.status === 204) return undefined as T;
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 /** Creates a brand-new draft in the Drafts folder. Never sends. */
@@ -258,8 +292,8 @@ async function createDraft(
   const payload = {
     Subject: subject,
     Body: { ContentType: bodyType, Content: body },
-    ToRecipients: to.map((addr) => ({ EmailAddress: { Address: addr } })),
-    CcRecipients: cc.map((addr) => ({ EmailAddress: { Address: addr } })),
+    ToRecipients: toRecipients(to),
+    CcRecipients: toRecipients(cc),
   };
   const data = await apiWrite<EmailFull & { WebLink?: string }>("/messages", "POST", payload);
   return { id: data.Id, webLink: data.WebLink };
@@ -283,18 +317,63 @@ async function createReplyDraft(
     {},
   );
 
-  const bodyType = draft.Body?.ContentType === "Text" ? "Text" : "HTML";
-  const existing = draft.Body?.Content ?? "";
-  const prefix = bodyType === "HTML"
-    ? `<p>${escapeHtml(comment).replace(/\n/g, "<br>")}</p>`
-    : `${comment}\n\n`;
-
   const patched = await apiWrite<EmailFull & { WebLink?: string }>(
     `/messages/${encodeURIComponent(draft.Id)}`,
     "PATCH",
-    { Body: { ContentType: bodyType, Content: prefix + existing } },
+    { Body: prependToBody(draft.Body, comment) },
   );
   return { id: draft.Id, webLink: patched.WebLink ?? draft.WebLink };
+}
+
+/**
+ * Reads a message and refuses unless Outlook marks it IsDraft, so the draft write tools can never
+ * modify or delete a received or sent email. Body is only requested when the caller needs it.
+ */
+async function requireDraft(id: string, verb: string, withBody: boolean): Promise<DraftState> {
+  const msg = await apiFetch<DraftState>(`/messages/${encodeURIComponent(id)}`, {
+    $select: withBody ? "Id,Subject,IsDraft,WebLink,Body" : "Id,Subject,IsDraft,WebLink",
+  });
+  if (!msg.IsDraft) {
+    throw new Error(`Refusing to ${verb} message ${id}: it is not a draft (subject: "${msg.Subject}"). Only drafts can be changed.`);
+  }
+  return msg;
+}
+
+/**
+ * PATCHes an existing draft with only the fields the caller passed. Works on any draft, including
+ * replies from createReplyDraft. `body` replaces the whole body (quoted thread included), while
+ * `prependComment` reads the current body and inserts text above it, so revising the top of a
+ * reply does not require re-sending the quote. Never sends.
+ */
+async function updateDraft(id: string, changes: DraftChanges): Promise<CreatedDraft> {
+  const { subject, body, bodyType, to, cc, prependComment } = changes;
+  if (body !== undefined && prependComment !== undefined) {
+    throw new Error("Pass either body (replace the whole body) or prepend_comment (insert above the existing body), not both.");
+  }
+  if (bodyType !== undefined && body === undefined) {
+    throw new Error("body_type is only used together with body.");
+  }
+  if ([subject, body, to, cc, prependComment].every((v) => v === undefined)) {
+    throw new Error("No changes specified. Pass at least one of subject, body, to, cc, or prepend_comment.");
+  }
+
+  const draft = await requireDraft(id, "update", prependComment !== undefined);
+
+  const payload: Record<string, unknown> = {};
+  if (subject !== undefined) payload.Subject = subject;
+  if (to !== undefined) payload.ToRecipients = toRecipients(to);
+  if (cc !== undefined) payload.CcRecipients = toRecipients(cc);
+  if (body !== undefined) payload.Body = { ContentType: bodyType ?? "HTML", Content: body };
+  if (prependComment !== undefined) payload.Body = prependToBody(draft.Body, prependComment);
+
+  const patched = await apiWrite<DraftState>(`/messages/${encodeURIComponent(id)}`, "PATCH", payload);
+  return { id: patched.Id ?? id, webLink: patched.WebLink ?? draft.WebLink };
+}
+
+/** Deletes a draft after the IsDraft guard. Outlook answers 204 No Content on success. */
+async function deleteDraft(id: string): Promise<void> {
+  await requireDraft(id, "delete", false);
+  await apiWrite<void>(`/messages/${encodeURIComponent(id)}`, "DELETE");
 }
 
 async function searchEvents(query: string): Promise<Event[]> {
@@ -432,6 +511,29 @@ export const outlook: ToolModule = {
         id: draft.id, web_link: draft.webLink,
         note: "Reply draft saved to Outlook Drafts folder. Not sent — review and send manually.",
       }, null, 2) }] };
+    });
+
+    server.tool("outlook_update_draft", "Edit an existing draft in place (any draft, including replies from outlook_create_reply_draft). Only the fields passed are changed. Saves to Drafts. Never sends.", {
+      id: z.string().describe("ID of the draft to update"),
+      subject: z.string().optional().describe("New subject"),
+      body: z.string().optional().describe("Replacement body. Replaces the entire body, including any quoted thread. Cannot be combined with prepend_comment."),
+      body_type: z.enum(["HTML", "Text"]).optional().describe("Content type of body (default: HTML). Only used together with body."),
+      to: z.array(z.string()).optional().describe("Replacement To recipients, as the full list. An empty array clears them."),
+      cc: z.array(z.string()).optional().describe("Replacement CC recipients, as the full list. An empty array clears them."),
+      prepend_comment: z.string().optional().describe("Text to insert above the existing body, keeping the quoted thread intact. Newlines become <br> in HTML drafts. Cannot be combined with body."),
+    }, async ({ id, subject, body, body_type, to, cc, prepend_comment }) => {
+      const draft = await updateDraft(id, { subject, body, bodyType: body_type, to, cc, prependComment: prepend_comment });
+      return { content: [{ type: "text", text: JSON.stringify({
+        id: draft.id, web_link: draft.webLink,
+        note: "Draft updated in Outlook Drafts folder. Not sent. Review and send manually.",
+      }, null, 2) }] };
+    });
+
+    server.tool("outlook_delete_draft", "Delete a draft by ID. Refuses anything that is not a draft, so received and sent emails are never touched.", {
+      id: z.string().describe("ID of the draft to delete"),
+    }, async ({ id }) => {
+      await deleteDraft(id);
+      return { content: [{ type: "text", text: JSON.stringify({ id, deleted: true }, null, 2) }] };
     });
   },
 };

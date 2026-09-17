@@ -25,7 +25,7 @@ work-tools/
 │       │   ├── env.ts           # Shared env loading
 │       │   ├── browser-auth.ts  # Shared Playwright token capture
 │       │   └── modules/
-│       │       ├── outlook.ts   # Outlook email/calendar (7 tools)
+│       │       ├── outlook.ts   # Outlook email/calendar (11 tools)
 │       │       ├── harvest.ts   # Harvest time tracking (9 tools, PAT or browser)
 │       │       └── jira.ts      # Jira issue tracking (5 tools, API token)
 │       ├── package.json
@@ -124,8 +124,8 @@ Then add it to the `modules` array in `src/index.ts`.
 
 **Shared** (1): `warmup`
 
-**Outlook tools** (9):
-`outlook_status`, `outlook_refresh`, `outlook_list_emails`, `outlook_read_email`, `outlook_search_emails`, `outlook_list_events`, `outlook_search_events`, `outlook_create_draft`, `outlook_create_reply_draft`
+**Outlook tools** (11):
+`outlook_status`, `outlook_refresh`, `outlook_list_emails`, `outlook_read_email`, `outlook_search_emails`, `outlook_list_events`, `outlook_search_events`, `outlook_create_draft`, `outlook_create_reply_draft`, `outlook_update_draft`, `outlook_delete_draft`
 
 **Harvest tools** (9):
 `harvest_status`, `harvest_refresh`, `harvest_list_projects`, `harvest_list_tasks`, `harvest_list_time_entries`, `harvest_create_time_entry`, `harvest_update_time_entry`, `harvest_delete_time_entry`, `harvest_weekly_summary`
@@ -152,7 +152,7 @@ Skills expect these external MCP servers to be configured:
 Skills support two tool access modes:
 
 **Mode A: MCP Server (default)** — Full-featured. Requires `git clone` → `npm run build` → `claude mcp add`.
-- All 22 tools (Outlook, Harvest, Jira) available
+- All 26 tools (Outlook, Harvest, Jira) available
 - Supports browser auth (Outlook, Harvest warmup)
 - Supports write operations (Harvest time entry CRUD)
 

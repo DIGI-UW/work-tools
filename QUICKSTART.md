@@ -4,7 +4,7 @@ This repo has two kinds of artifacts that combine differently depending on your 
 
 | Artifact | What it is | Location |
 |----------|-----------|----------|
-| **MCP Server** | Local Node.js process exposing 22 tools (Outlook, Harvest, Jira) over stdio | `mcp-servers/work-tools/` |
+| **MCP Server** | Local Node.js process exposing 26 tools (Outlook, Harvest, Jira) over stdio | `mcp-servers/work-tools/` |
 | **Skills** | AI playbooks with bundled scripts — tell Claude *when* and *how* to use tools | `skills/` |
 
 Pick the path that matches your setup. Each path builds on the previous one.
@@ -228,12 +228,12 @@ git add my-config.<yourname>.md
 
 ## Tool Inventory
 
-**MCP Server** (22 tools + 1 shared):
+**MCP Server** (25 tools + 1 shared):
 
 | Module | Tools | Auth |
 |--------|-------|------|
 | **Shared** | `warmup` | — |
-| **Outlook** (7) | `outlook_status`, `outlook_refresh`, `outlook_list_emails`, `outlook_read_email`, `outlook_search_emails`, `outlook_list_events`, `outlook_search_events` | Browser token (auto-refresh) |
+| **Outlook** (11) | `outlook_status`, `outlook_refresh`, `outlook_list_emails`, `outlook_read_email`, `outlook_search_emails`, `outlook_list_events`, `outlook_search_events`, `outlook_create_draft`, `outlook_create_reply_draft`, `outlook_update_draft`, `outlook_delete_draft` | Browser token (auto-refresh) |
 | **Harvest** (9) | `harvest_status`, `harvest_refresh`, `harvest_list_projects`, `harvest_list_tasks`, `harvest_list_time_entries`, `harvest_create_time_entry`, `harvest_update_time_entry`, `harvest_delete_time_entry`, `harvest_weekly_summary` | PAT env vars or browser token |
 | **Jira** (5) | `jira_status`, `jira_search`, `jira_get_issue`, `jira_my_issues`, `jira_list_projects` | API token (env vars) |
 

@@ -19,7 +19,7 @@ work-tools/
 
 ### MCP Server
 
-**work-tools** — Modular MCP server with drop-in service modules. Provides 22 tools across three modules:
+**work-tools** — Modular MCP server with drop-in service modules. Provides 26 tools across three modules:
 
 | Module | Tools | Auth |
 |--------|-------|------|
@@ -46,7 +46,7 @@ There are four ways to use this repo, depending on your environment:
 | Path | Environment | What you get |
 |------|------------|--------------|
 | **A: Skills only** | Claude Desktop | Jira + Harvest read via bundled scripts. No Outlook, no Harvest writes. |
-| **B: Skills + MCP server** | Claude Desktop | Full power — all 22 tools, browser auth, Harvest CRUD. |
+| **B: Skills + MCP server** | Claude Desktop | Full power — all 26 tools, browser auth, Harvest CRUD. |
 | **C: Claude Code / Cowork** | Terminal / CLI | Same as B, plus scheduled tasks and symlinked skills. |
 | **D: Cursor / other agents** | Any MCP-compatible env | MCP tools work anywhere. Skills are reference docs, not native. |
 
