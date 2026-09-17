@@ -11,7 +11,7 @@ Registered as `work-tools` via `claude mcp add --scope user`. Provides direct AP
 **Warmup:**
 - `warmup` — Capture auth tokens for browser-based services (opens browser briefly). Call if Outlook/Harvest sessions are expired. Jira uses API token auth and doesn't need warmup.
 
-**Outlook (7 tools):**
+**Outlook (9 tools):**
 - `outlook_status` — Check session status
 - `outlook_refresh` — Re-authenticate (opens browser)
 - `outlook_list_emails` — List recent emails (folder, limit, skip, from_date, to_date)
@@ -19,6 +19,8 @@ Registered as `work-tools` via `claude mcp add --scope user`. Provides direct AP
 - `outlook_search_emails` — Search by keyword
 - `outlook_list_events` — Calendar events for a date range (default: next 7 days)
 - `outlook_search_events` — Search events by subject/location/organizer
+- `outlook_create_draft` — Create a new email draft (to, subject, body, cc, body_type). Saves to Drafts — never sends.
+- `outlook_create_reply_draft` — Create a draft reply to an existing email, with the thread quoted (id, comment, reply_all). Saves to Drafts — never sends.
 
 **Harvest (9 tools):**
 - `harvest_status` — Check connection status
