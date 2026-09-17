@@ -145,15 +145,17 @@ async function apiFetch<T>(path: string, params?: Record<string, string>): Promi
 
 // ── Types ──────────────────────────────────────────────────
 
+interface Recipient { EmailAddress: { Name: string; Address: string } }
 interface Email {
   Id: string; Subject: string; ReceivedDateTime: string; BodyPreview: string; IsRead: boolean;
-  From: { EmailAddress: { Name: string; Address: string } };
+  /** Absent on drafts — Outlook only populates a sender once a message has actually been sent. */
+  From?: Recipient;
 }
 interface MessageBody { ContentType: string; Content: string }
 interface EmailFull extends Email {
   Body: MessageBody;
-  ToRecipients: Array<{ EmailAddress: { Name: string; Address: string } }>;
-  CcRecipients: Array<{ EmailAddress: { Name: string; Address: string } }>;
+  ToRecipients: Recipient[];
+  CcRecipients: Recipient[];
 }
 interface Event {
   Id: string; Subject: string; IsAllDay: boolean; IsCancelled: boolean;
@@ -231,6 +233,10 @@ function escapeHtml(text: string): string {
 
 function toRecipients(addresses: string[]) {
   return addresses.map((addr) => ({ EmailAddress: { Address: addr } }));
+}
+
+function formatRecipient(r: Recipient): string {
+  return `${r.EmailAddress.Name} <${r.EmailAddress.Address}>`;
 }
 
 /**
@@ -434,7 +440,7 @@ export const outlook: ToolModule = {
     }, async ({ folder, limit, skip, from_date, to_date }) => {
       const emails = await listEmails(folder ?? "inbox", limit ?? 20, skip ?? 0, from_date, to_date);
       return { content: [{ type: "text", text: JSON.stringify(emails.map((e) => ({
-        id: e.Id, subject: e.Subject, from: `${e.From.EmailAddress.Name} <${e.From.EmailAddress.Address}>`,
+        id: e.Id, subject: e.Subject, from: e.From ? formatRecipient(e.From) : null,
         date: e.ReceivedDateTime, preview: e.BodyPreview, read: e.IsRead,
       })), null, 2) }] };
     });
@@ -445,9 +451,9 @@ export const outlook: ToolModule = {
       const email = await readEmail(id);
       return { content: [{ type: "text", text: JSON.stringify({
         subject: email.Subject,
-        from: `${email.From.EmailAddress.Name} <${email.From.EmailAddress.Address}>`,
-        to: email.ToRecipients?.map((r) => `${r.EmailAddress.Name} <${r.EmailAddress.Address}>`) ?? [],
-        cc: email.CcRecipients?.map((r) => `${r.EmailAddress.Name} <${r.EmailAddress.Address}>`) ?? [],
+        from: email.From ? formatRecipient(email.From) : null,
+        to: email.ToRecipients?.map(formatRecipient) ?? [],
+        cc: email.CcRecipients?.map(formatRecipient) ?? [],
         date: email.ReceivedDateTime, body: email.Body.Content, bodyType: email.Body.ContentType,
       }, null, 2) }] };
     });
@@ -458,7 +464,7 @@ export const outlook: ToolModule = {
     }, async ({ query, limit }) => {
       const emails = await searchEmails(query, limit ?? 20);
       return { content: [{ type: "text", text: JSON.stringify(emails.map((e) => ({
-        id: e.Id, subject: e.Subject, from: `${e.From.EmailAddress.Name} <${e.From.EmailAddress.Address}>`,
+        id: e.Id, subject: e.Subject, from: e.From ? formatRecipient(e.From) : null,
         date: e.ReceivedDateTime, preview: e.BodyPreview,
       })), null, 2) }] };
     });
